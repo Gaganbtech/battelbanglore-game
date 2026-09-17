@@ -40,15 +40,26 @@ export class ThirdPersonCamera {
     this.shakeDecay = 6.0;
     this.landingImpulse = 0;
 
+    // First-Person / Third-Person View Mode Toggle
+    this.isFirstPerson = true; // True by default matching the AAA First-Person reference target
+    this.camera.near = 0.05; // Prevent viewmodel clipping
+    this.camera.updateProjectionMatrix();
+
     // Raycaster for Triple-Ray Collision Testing
     this.raycaster = new THREE.Raycaster();
 
-    // Shoulder switch on V key
+    // Shoulder switch on V key, Perspective toggle on C key
     window.addEventListener('keydown', (e) => {
       if (e.key.toLowerCase() === 'v' && !e.repeat) {
         this.toggleShoulderSide();
+      } else if (e.key.toLowerCase() === 'c' && !e.repeat) {
+        this.togglePerspective();
       }
     });
+  }
+
+  togglePerspective() {
+    this.isFirstPerson = !this.isFirstPerson;
   }
 
   update(delta, targetPosition, mouseDelta, isSprinting = false, isCrouched = false, isAiming = false, isADS = false, sceneColliders = [], busDeck = null) {
@@ -65,8 +76,13 @@ export class ThirdPersonCamera {
 
     this.pitch = THREE.MathUtils.clamp(this.pitch, this.minPitch, this.maxPitch);
 
-    // 2. Camera Mode Tuning (Hip Fire vs Shoulder Aim vs ADS vs Sprint vs BMTC Panoramic)
-    if (busDeck === 'UPPER_DECK') {
+    // 2. Camera Mode Tuning (First-Person vs Hip Fire vs Shoulder Aim vs ADS vs Sprint vs BMTC Panoramic)
+    if (this.isFirstPerson) {
+      this.targetDistance = 0.0;
+      this.targetShoulderOffsetX = 0.0;
+      this.targetHeight = isCrouched ? 1.15 : 1.62;
+      this.targetFOV = isADS ? 50.0 : (isSprinting ? 78.0 : 70.0);
+    } else if (busDeck === 'UPPER_DECK') {
       // Upper Deck Panoramic Vista Mode
       this.targetDistance = 2.1;
       this.targetFOV = 78.0;
@@ -113,6 +129,32 @@ export class ThirdPersonCamera {
 
     this.camera.fov = this.currentFOV;
     this.camera.updateProjectionMatrix();
+
+    // First-Person Direct Eye Placement
+    if (this.isFirstPerson) {
+      const eyePos = targetPosition.clone().add(new THREE.Vector3(0, this.cameraHeight - this.landingImpulse, 0));
+      this.smoothedLookTarget.copy(eyePos);
+      this.currentPosition.lerp(eyePos, delta * 30);
+
+      // Micro-shake
+      if (this.shakeIntensity > 0.0005) {
+        this.currentPosition.x += (Math.random() - 0.5) * this.shakeIntensity;
+        this.currentPosition.y += (Math.random() - 0.5) * this.shakeIntensity;
+        this.shakeIntensity = Math.max(0, this.shakeIntensity - this.shakeDecay * delta);
+      }
+
+      this.camera.position.copy(this.currentPosition);
+
+      // Look direction from pitch & yaw
+      const forwardDir = new THREE.Vector3(
+        -Math.sin(this.yaw) * Math.cos(this.pitch),
+        Math.sin(this.pitch),
+        -Math.cos(this.yaw) * Math.cos(this.pitch)
+      );
+      const lookAtPoint = this.camera.position.clone().add(forwardDir);
+      this.camera.lookAt(lookAtPoint);
+      return;
+    }
 
     // 3. Dynamic Organic Weapon Sway (Lissajous curves)
     const time = Date.now() * 0.0018;

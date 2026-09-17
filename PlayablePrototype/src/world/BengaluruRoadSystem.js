@@ -15,6 +15,7 @@ export class BengaluruRoadSystem {
     this.buildDrainageAndManholes();
     this.buildPaverBlockFootpaths();
     this.buildRoadsideStreetFurniture();
+    this.buildReferenceRoadsideFeatures();
 
     this.scene.add(this.group);
   }
@@ -320,5 +321,218 @@ export class BengaluruRoadSystem {
     // Side-stand lean
     scoot.rotation.z = 0.08;
     return scoot;
+  }
+
+  buildReferenceRoadsideFeatures() {
+    // 1. Center Concrete Median with Diagonal Yellow/Black Chevron Hazard Stripes & Lush Planters
+    const medianLength = 160;
+    const medianMat = new THREE.MeshStandardMaterial({
+      color: 0x334155,
+      roughness: 0.75
+    });
+
+    // Concrete curb base
+    const curb = new THREE.Mesh(new THREE.BoxGeometry(medianLength, 0.45, 1.8), medianMat);
+    curb.position.set(0, 0.22, 0);
+    curb.receiveShadow = true;
+    this.group.add(curb);
+
+    // Diagonal Yellow & Black Chevron Painted Stripes along Median Faces
+    const chevronCanvas = document.createElement('canvas');
+    chevronCanvas.width = 512;
+    chevronCanvas.height = 64;
+    const chCtx = chevronCanvas.getContext('2d');
+    chCtx.fillStyle = '#0f172a'; // Black stripe
+    chCtx.fillRect(0, 0, 512, 64);
+    chCtx.fillStyle = '#eab308'; // Amber yellow stripe
+    for (let x = -64; x < 512 + 64; x += 64) {
+      chCtx.beginPath();
+      chCtx.moveTo(x, 0);
+      chCtx.lineTo(x + 32, 0);
+      chCtx.lineTo(x + 64, 64);
+      chCtx.lineTo(x + 32, 64);
+      chCtx.closePath();
+      chCtx.fill();
+    }
+    const chevronTex = new THREE.CanvasTexture(chevronCanvas);
+    chevronTex.wrapS = THREE.RepeatWrapping;
+    chevronTex.repeat.set(12, 1);
+    const chevronMat = new THREE.MeshBasicMaterial({ map: chevronTex });
+
+    [-0.92, 0.92].forEach(cz => {
+      const stripeMesh = new THREE.Mesh(new THREE.PlaneGeometry(medianLength, 0.42), chevronMat);
+      stripeMesh.rotation.y = cz > 0 ? 0 : Math.PI;
+      stripeMesh.position.set(0, 0.22, cz);
+      this.group.add(stripeMesh);
+    });
+
+    // Lush Green Shrubbery / Planters along the Median Top
+    const shrubMat = new THREE.MeshStandardMaterial({
+      color: 0x166534, // Vibrant evergreen shrub
+      roughness: 0.78,
+      metalness: 0.05
+    });
+    for (let mx = -medianLength / 2 + 6; mx <= medianLength / 2 - 6; mx += 14) {
+      const shrub = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85, 1), shrubMat);
+      shrub.scale.set(1.6, 0.9, 0.9);
+      shrub.position.set(mx, 0.8, 0);
+      shrub.castShadow = true;
+      this.group.add(shrub);
+    }
+
+    // 2. Modern Roadside Bus Shelter with Glass Canopy and Digital Ad Display
+    const shelterGroup = new THREE.Group();
+    shelterGroup.position.set(-6, 0, 14.2);
+
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, roughness: 0.1 });
+
+    // Shelter Roof & Columns
+    const shelterRoof = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.15, 2.6), frameMat);
+    shelterRoof.position.set(0, 3.2, 0);
+    shelterGroup.add(shelterRoof);
+
+    [-2.8, 2.8].forEach(cx => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.2, 0.15), frameMat);
+      post.position.set(cx, 1.6, 1.1);
+      shelterGroup.add(post);
+    });
+
+    // Glass Back Wall
+    const glassBack = new THREE.Mesh(new THREE.BoxGeometry(5.8, 2.6, 0.08), glassMat);
+    glassBack.position.set(0, 1.6, 1.1);
+    shelterGroup.add(glassBack);
+
+    // Bench
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.45), frameMat);
+    bench.position.set(0, 0.6, 0.8);
+    shelterGroup.add(bench);
+
+    // Digital Advertising Board ("Better Bengaluru")
+    const adCanvas = document.createElement('canvas');
+    adCanvas.width = 256;
+    adCanvas.height = 512;
+    const adCtx = adCanvas.getContext('2d');
+    adCtx.fillStyle = '#0f172a';
+    adCtx.fillRect(0, 0, 256, 512);
+
+    // Ad gradient
+    const grad = adCtx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#0284c7');
+    grad.addColorStop(1, '#0f172a');
+    adCtx.fillStyle = grad;
+    adCtx.fillRect(8, 8, 240, 496);
+
+    adCtx.fillStyle = '#ffffff';
+    adCtx.font = 'bold 32px sans-serif';
+    adCtx.textAlign = 'center';
+    adCtx.fillText('Better', 128, 160);
+    adCtx.fillStyle = '#38bdf8';
+    adCtx.fillText('Bengaluru', 128, 205);
+    adCtx.font = '16px sans-serif';
+    adCtx.fillStyle = '#cbd5e1';
+    adCtx.fillText('Clean • Green • Smart', 128, 260);
+
+    const adTex = new THREE.CanvasTexture(adCanvas);
+    const adMat = new THREE.MeshBasicMaterial({ map: adTex });
+    const adKiosk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 0.2), adMat);
+    adKiosk.position.set(3.2, 1.5, 0);
+    shelterGroup.add(adKiosk);
+
+    this.group.add(shelterGroup);
+
+    // 3. Parked Black Luxury SUV on the Right Foreground (Reference Target)
+    const suvGroup = new THREE.Group();
+    suvGroup.position.set(3.8, 0, 3.2);
+    suvGroup.rotation.y = -0.15;
+
+    const glossBlackMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0c10, // Deep obsidian black clearcoat
+      roughness: 0.12,
+      metalness: 0.85,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1
+    });
+
+    const suvGlassMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.05,
+      metalness: 0.95,
+      transparent: true,
+      opacity: 0.75
+    });
+
+    const alloyRimMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.2,
+      metalness: 0.95
+    });
+
+    const suvTireMat = new THREE.MeshStandardMaterial({
+      color: 0x111111,
+      roughness: 0.85
+    });
+
+    // SUV Body
+    const suvLower = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 4.8), glossBlackMat);
+    suvLower.position.y = 0.75;
+    suvLower.castShadow = true;
+    suvGroup.add(suvLower);
+
+    // SUV Cabin & Roof
+    const suvCabin = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.72, 2.8), glossBlackMat);
+    suvCabin.position.set(0, 1.45, -0.2);
+    suvCabin.castShadow = true;
+    suvGroup.add(suvCabin);
+
+    // Front Windshield & Windows
+    const suvWindshield = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.65, 0.08), suvGlassMat);
+    suvWindshield.rotation.x = 0.45;
+    suvWindshield.position.set(0, 1.35, 1.2);
+    suvGroup.add(suvWindshield);
+
+    // Detailed Multi-Spoke Alloy Wheels & Brake Calipers
+    const tireGeo = new THREE.CylinderGeometry(0.44, 0.44, 0.28, 16);
+    tireGeo.rotateZ(Math.PI / 2);
+    const rimGeo = new THREE.CylinderGeometry(0.30, 0.30, 0.30, 12);
+    rimGeo.rotateZ(Math.PI / 2);
+
+    [-1.0, 1.0].forEach(wx => {
+      [-1.45, 1.45].forEach(wz => {
+        const tire = new THREE.Mesh(tireGeo, suvTireMat);
+        const rim = new THREE.Mesh(rimGeo, alloyRimMat);
+        tire.add(rim);
+        tire.position.set(wx, 0.44, wz);
+        tire.castShadow = true;
+        suvGroup.add(tire);
+      });
+    });
+
+    this.group.add(suvGroup);
+
+    // 4. Large Reflective Water Puddles along the Boulevard Road Surface
+    const puddleWaterMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.06,
+      metalness: 0.45,
+      transparent: true,
+      opacity: 0.88,
+      depthWrite: false
+    });
+
+    const puddlePositions = [
+      { x: -1.2, z: 2.5, sx: 4.8, sz: 3.2, rot: 0.2 },
+      { x: 2.8, z: 1.2, sx: 5.5, sz: 3.8, rot: -0.15 },
+      { x: -8.5, z: 6.5, sx: 6.2, sz: 4.5, rot: 0.4 }
+    ];
+
+    puddlePositions.forEach(p => {
+      const puddle = new THREE.Mesh(new THREE.CircleGeometry(1.0, 16), puddleWaterMat);
+      puddle.rotation.x = -Math.PI / 2;
+      puddle.position.set(p.x, 0.035, p.z);
+      puddle.scale.set(p.sx, p.sz, 1);
+      puddle.rotation.z = p.rot;
+      this.group.add(puddle);
+    });
   }
 }

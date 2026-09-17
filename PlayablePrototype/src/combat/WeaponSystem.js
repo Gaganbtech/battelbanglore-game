@@ -141,6 +141,8 @@ export class WeaponSystem {
     this.muzzleLight = new THREE.PointLight(0xffb300, 0, 15);
     this.scene.add(this.muzzleLight);
 
+    this.onShotFiredCallback = null;
+
     this.switchWeapon('ar9');
   }
 
@@ -332,11 +334,13 @@ export class WeaponSystem {
   }
 
   update(delta, camera, isPlayerInVehicle, cameraSystem = null) {
-    if (isPlayerInVehicle) {
+    const isFirstPerson = cameraSystem && cameraSystem.isFirstPerson;
+    if (isPlayerInVehicle || isFirstPerson) {
       this.weaponRoot.visible = false;
-      return;
+      if (isPlayerInVehicle) return;
+    } else {
+      this.weaponRoot.visible = true;
     }
-    this.weaponRoot.visible = true;
 
     // 1. Firing Loop with Individual Fire Rates
     this.fireTimer += delta;
@@ -442,6 +446,9 @@ export class WeaponSystem {
 
   executeShot(camera, cameraSystem) {
     this.clipAmmo--;
+    if (this.onShotFiredCallback) {
+      this.onShotFiredCallback();
+    }
     const currentModel = this.weaponMeshes[this.currentWeaponKey];
     if (!currentModel) return;
 

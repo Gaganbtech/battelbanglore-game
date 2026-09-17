@@ -14,6 +14,7 @@ export class BattleRoyaleHUD {
       z-index: 100;
       font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       user-select: none;
+      display: none;
     `;
 
     this.container.innerHTML = `

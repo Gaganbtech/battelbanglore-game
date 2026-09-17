@@ -72,6 +72,12 @@ import { RealisticHumanoidCharacter } from './player/RealisticHumanoidCharacter.
 import { BengaluruDistrictArchitectures } from './world/BengaluruDistrictArchitectures.js';
 import { ProductionAudit } from './core/ProductionAudit.js';
 
+// Reference Target AAA First-Person Presentation & Architecture
+import { FirstPersonViewModel } from './player/FirstPersonViewModel.js';
+import { MGRoadMetroViaductStation } from './world/MGRoadMetroViaductStation.js';
+import { BMTCElectricBusD12 } from './transport/BMTCElectricBusD12.js';
+import { ReferenceProductionHUD } from './ui/ReferenceProductionHUD.js';
+
 class BengaluruGame {
   constructor() {
     this.container = document.getElementById('game-container');
@@ -170,6 +176,12 @@ class BengaluruGame {
       document.getElementById('world-map-canvas')
     );
 
+    // Reference Target First-Person Presentation & Architecture
+    this.firstPersonViewModel = new FirstPersonViewModel(this.camera, this.scene, this.audioManager);
+    this.mgRoadMetroStation = new MGRoadMetroViaductStation(this.scene);
+    this.bmtcElectricBusD12 = new BMTCElectricBusD12(this.scene, new THREE.Vector3(-8.5, 0, 12));
+    this.referenceHUD = new ReferenceProductionHUD();
+
     // Phase 3 Master Battle Royale Architecture
     this.brGameState = new BattleRoyaleGameState();
     this.brGameMode = new BattleRoyaleGameMode(this.brGameState, this.audioManager);
@@ -255,6 +267,26 @@ class BengaluruGame {
     }
 
     this.clock = new THREE.Clock();
+
+    // Synchronize interaction prompts between original HUD and Reference Production HUD
+    const origShowPrompt = this.hud.showInteractionPrompt.bind(this.hud);
+    const origHidePrompt = this.hud.hideInteractionPrompt.bind(this.hud);
+    this.hud.showInteractionPrompt = (text) => {
+      origShowPrompt(text);
+      if (this.referenceHUD) this.referenceHUD.showInteractionPrompt(text);
+    };
+    this.hud.hideInteractionPrompt = () => {
+      origHidePrompt();
+      if (this.referenceHUD) this.referenceHUD.hideInteractionPrompt();
+    };
+
+    // Weapon Shot Fired callback for First-Person ViewModel recoil and spent casing
+    this.weaponSystem.onShotFiredCallback = () => {
+      if (this.firstPersonViewModel && this.thirdPersonCamera.isFirstPerson && !this.gameState.isInVehicle) {
+        this.firstPersonViewModel.triggerFireRecoil();
+      }
+    };
+
     this.setupUICallbacks();
     this.setupCombatInputs();
     this.setupWindowEvents();
@@ -269,6 +301,7 @@ class BengaluruGame {
     this.mainMenu.onStartGame = () => {
       this.gameState.setState(GameModeState.PLAYING);
       this.hud.show();
+      if (this.referenceHUD) this.referenceHUD.setVisible(true);
       this.inputManager.requestPointerLock();
     };
 
@@ -278,6 +311,7 @@ class BengaluruGame {
       this.matchmaking.startMatchmaking((mode) => {
         this.gameState.setState(GameModeState.PLAYING);
         this.hud.show();
+        if (this.referenceHUD) this.referenceHUD.setVisible(true);
         this.brGameState.matchStateMachine.setState(EBattleRoyaleMatchState.AircraftDeparture);
         this.cargoAircraft.startFlight();
         this.brZoneManager.startZoneProgression();
@@ -289,6 +323,7 @@ class BengaluruGame {
     // Open Garage
     this.mainMenu.onOpenGarage = () => {
       this.garageMenu.show();
+      if (this.referenceHUD) this.referenceHUD.setVisible(false);
       this.inputManager.exitPointerLock();
     };
 
@@ -667,6 +702,16 @@ class BengaluruGame {
         this.flightController.deployParachute();
       }
 
+      // First-Person vs Third-Person Mesh and Viewmodel Visibility Toggle
+      const isFirstPerson = this.thirdPersonCamera.isFirstPerson && !this.gameState.isInVehicle;
+      this.player.mesh.visible = !isFirstPerson && !this.gameState.isInVehicle;
+      this.firstPersonViewModel.setVisible(isFirstPerson);
+
+      if (isFirstPerson) {
+        this.firstPersonViewModel.setADS(isADS);
+        this.firstPersonViewModel.update(delta, this.player.isMoving, this.player.isSprinting);
+      }
+
       // Update Player or Vehicle
       if (this.gameState.isInVehicle) {
         const vehicle = this.gameState.activeVehicle;
@@ -816,9 +861,26 @@ class BengaluruGame {
         this.gameState.currentZone,
         zoneData ? { centerX: this.brZoneManager.center.x, centerZ: this.brZoneManager.center.z, radius: this.brZoneManager.currentRadius } : null
       );
-    } else if (this.gameState.currentState === GameModeState.MAP_OPEN) {
-      const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
-      this.minimap.renderWorldMap(activePos, this.thirdPersonCamera.getYaw());
+      // Update Reference Target First-Person Environment & Metro
+      this.mgRoadMetroStation.update(delta);
+      this.bmtcElectricBusD12.update(delta);
+
+      // Update Reference Target Production Battle Royale HUD
+      this.referenceHUD.setVisible(true);
+      this.referenceHUD.update(
+        this.brGameState.aliveCount,
+        p1State.kills,
+        zoneData,
+        p1State,
+        { clip: this.weaponSystem.clipAmmo, reserve: this.weaponSystem.reserveAmmo },
+        compassBearing
+      );
+    } else {
+      if (this.referenceHUD) this.referenceHUD.setVisible(false);
+      if (this.gameState.currentState === GameModeState.MAP_OPEN) {
+        const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
+        this.minimap.renderWorldMap(activePos, this.thirdPersonCamera.getYaw());
+      }
     }
 
     // Render Scene
