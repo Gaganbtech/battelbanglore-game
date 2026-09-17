@@ -3,7 +3,7 @@
 :root {
   --bg-primary: #0a0e14;
   --bg-glass: rgba(14, 20, 30, 0.75);
-  --bg-glass-heavy: rgba(10, 14, 22, 0.92);
+  --bg-glass-heavy: rgba(10, 14, 22, 0.94);
   --border-glass: rgba(255, 170, 0, 0.25);
   --border-subtle: rgba(255, 255, 255, 0.08);
   
@@ -12,7 +12,7 @@
   --accent-cyan: #00e5ff;
   --accent-purple: #9c27b0;
   --accent-green: #00e676;
-  --accent-red: #ff3d00;
+  --accent-red: #ff1744;
   
   --text-main: #f0f4f8;
   --text-muted: #8899a6;
@@ -54,7 +54,7 @@ canvas {
   display: block;
 }
 
-/* UI LAYER */
+/* UI ROOT */
 #ui-root {
   position: absolute;
   top: 0;
@@ -189,14 +189,6 @@ canvas {
   border-left-color: #555;
 }
 
-.menu-btn.disabled:hover {
-  background: rgba(255, 255, 255, 0.03);
-  transform: none;
-  padding-left: 1.6rem;
-  border-color: var(--border-subtle);
-  box-shadow: none;
-}
-
 .badge {
   font-size: 0.7rem;
   padding: 0.2rem 0.6rem;
@@ -252,7 +244,6 @@ canvas {
   display: none;
 }
 
-/* TOP COMPASS & OBJECTIVE */
 .hud-top {
   display: flex;
   justify-content: space-between;
@@ -316,7 +307,44 @@ canvas {
   text-shadow: 0 0 10px var(--accent-amber);
 }
 
-/* TOP RIGHT RADAR MINIMAP */
+/* BR STATUS PANEL (ALIVE & TIMER) */
+.br-status-panel {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.br-alive-box, .br-timer-box {
+  background: var(--bg-glass-heavy);
+  border: 1px solid var(--border-glass);
+  padding: 0.35rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  backdrop-filter: blur(8px);
+}
+
+.br-alive-label, .br-timer-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+
+.br-alive-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  line-height: 1;
+}
+
+.br-timer-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  line-height: 1;
+}
+
+/* MINIMAP RADAR */
 .hud-top-right {
   display: flex;
   flex-direction: column;
@@ -369,7 +397,93 @@ canvas {
   backdrop-filter: blur(8px);
 }
 
-/* BOTTOM LEFT STATS */
+/* RETICLE / CROSSHAIR */
+.crosshair-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  transition: width 0.12s ease, height 0.12s ease;
+}
+
+.crosshair-container.aiming {
+  width: 16px;
+  height: 16px;
+}
+
+.ch-bar {
+  position: absolute;
+  background: #00e5ff;
+  box-shadow: 0 0 6px #00e5ff;
+}
+
+.ch-top { top: 0; left: 50%; width: 2px; height: 7px; transform: translateX(-50%); }
+.ch-bottom { bottom: 0; left: 50%; width: 2px; height: 7px; transform: translateX(-50%); }
+.ch-left { left: 0; top: 50%; width: 7px; height: 2px; transform: translateY(-50%); }
+.ch-right { right: 0; top: 50%; width: 7px; height: 2px; transform: translateY(-50%); }
+.ch-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  background: #ff9800;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+/* KILLFEED */
+.killfeed-container {
+  position: absolute;
+  top: 22%;
+  right: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: 320px;
+}
+
+.killfeed-item {
+  background: rgba(10, 15, 24, 0.85);
+  border-left: 3px solid var(--accent-red);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  color: #fff;
+  backdrop-filter: blur(6px);
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(25px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* STORM WARNING BANNER */
+.storm-warning {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 23, 68, 0.88);
+  border: 1px solid #fff;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 0.5rem 1.8rem;
+  box-shadow: 0 0 30px rgba(255, 23, 68, 0.7);
+  animation: pulseWarning 1s infinite alternate;
+}
+
+@keyframes pulseWarning {
+  from { opacity: 0.8; }
+  to { opacity: 1.0; transform: translateX(-50%) scale(1.03); }
+}
+
+/* BOTTOM HUD & WEAPON STATUS */
 .hud-bottom {
   display: flex;
   justify-content: space-between;
@@ -434,6 +548,58 @@ canvas {
   font-family: var(--font-body);
 }
 
+/* WEAPON HUD PANEL */
+.weapon-hud-panel {
+  background: var(--bg-glass-heavy);
+  border: 1px solid var(--border-glass);
+  border-right: 3px solid var(--accent-gold);
+  padding: 0.8rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  backdrop-filter: blur(10px);
+  min-width: 220px;
+}
+
+.weapon-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.08em;
+}
+
+.weapon-ammo-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  line-height: 1;
+  margin: 0.2rem 0;
+}
+
+.ammo-clip {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ammo-divider {
+  font-size: 1.6rem;
+  color: var(--text-muted);
+}
+
+.ammo-reserve {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--text-gold);
+}
+
+.weapon-type-badge {
+  font-size: 0.65rem;
+  color: var(--accent-cyan);
+  letter-spacing: 0.12em;
+}
+
 /* INTERACTION PROMPT */
 #interaction-prompt {
   position: absolute;
@@ -477,7 +643,7 @@ canvas {
   color: #fff;
 }
 
-/* HUD BOTTOM RIGHT QUICK CONTROLS */
+/* HUD QUICK TOGGLES */
 .hud-quick-toggles {
   display: flex;
   gap: 0.6rem;
@@ -501,7 +667,87 @@ canvas {
   border-color: var(--accent-amber);
 }
 
-/* FULLSCREEN DISTRICT MAP */
+/* MODALS */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 7, 12, 0.85);
+  backdrop-filter: blur(15px);
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.25s ease;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: 580px;
+  background: var(--bg-glass-heavy);
+  border: 1px solid var(--border-glass);
+  padding: 2.2rem 2.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  color: #fff;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 0.5rem;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.setting-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-transform: uppercase;
+}
+
+.setting-slider {
+  width: 100%;
+  accent-color: var(--accent-amber);
+  cursor: pointer;
+}
+
+.setting-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  outline: none;
+}
+
+.setting-select option {
+  background: #0c121c;
+  color: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* FULLSCREEN MAP */
 #district-map-modal {
   position: absolute;
   inset: 0;
@@ -511,7 +757,6 @@ canvas {
   display: flex;
   flex-direction: column;
   padding: 2.5rem 3.5rem;
-  transition: opacity 0.3s ease;
 }
 
 #district-map-modal.hidden {
@@ -604,88 +849,4 @@ canvas {
   height: 14px;
   border-radius: 2px;
   flex-shrink: 0;
-}
-
-/* SETTINGS & PAUSE MODALS */
-.modal-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(4, 7, 12, 0.85);
-  backdrop-filter: blur(15px);
-  z-index: 200;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: opacity 0.25s ease;
-}
-
-.modal-overlay.hidden {
-  display: none;
-}
-
-.modal-card {
-  width: 580px;
-  background: var(--bg-glass-heavy);
-  border: 1px solid var(--border-glass);
-  padding: 2.2rem 2.8rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.6rem;
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-}
-
-.modal-title {
-  font-family: var(--font-display);
-  font-size: 2.8rem;
-  color: #fff;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-glass);
-  padding-bottom: 0.5rem;
-}
-
-.setting-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.setting-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-main);
-  text-transform: uppercase;
-}
-
-.setting-value {
-  color: var(--accent-gold);
-}
-
-.setting-slider {
-  width: 100%;
-  accent-color: var(--accent-amber);
-  cursor: pointer;
-}
-
-.setting-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-glass);
-  color: #fff;
-  padding: 0.6rem 1rem;
-  font-family: var(--font-ui);
-  font-size: 1rem;
-  outline: none;
-}
-
-.setting-select option {
-  background: #0c121c;
-  color: #fff;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
 }

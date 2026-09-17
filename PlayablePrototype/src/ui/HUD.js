@@ -1,4 +1,4 @@
-// In-Game HUD coordinator: health/stamina bars, compass, prompt, and quick toggles
+// In-Game HUD coordinator: health/stamina/nitro bars, compass, prompt, weapon ammo, killfeed, and BR stats
 import { ZONES } from '../config/constants.js';
 
 export class HUD {
@@ -6,7 +6,7 @@ export class HUD {
     this.gameState = gameState;
     this.audioManager = audioManager;
 
-    // DOM Elements
+    // Elements
     this.hudRoot = document.getElementById('hud');
     this.healthBar = document.getElementById('health-bar');
     this.healthVal = document.getElementById('health-value');
@@ -17,10 +17,21 @@ export class HUD {
     this.interactionPrompt = document.getElementById('interaction-prompt');
     this.promptLabel = document.getElementById('prompt-label');
 
+    // Phase 2 Elements
+    this.crosshair = document.getElementById('weapon-crosshair');
+    this.ammoClip = document.getElementById('ammo-clip');
+    this.ammoReserve = document.getElementById('ammo-reserve');
+    this.killfeed = document.getElementById('killfeed-container');
+    this.brStatusPanel = document.getElementById('br-status-panel');
+    this.brAliveCount = document.getElementById('br-alive-count');
+    this.brStormTimer = document.getElementById('br-storm-timer');
+    this.stormWarning = document.getElementById('storm-warning-banner');
+
     this.onToggleTime = null;
     this.onToggleWeather = null;
     this.onToggleCamera = null;
     this.onOpenMap = null;
+    this.onOpenGarage = null;
 
     this.initButtons();
   }
@@ -30,6 +41,7 @@ export class HUD {
     const btnWeather = document.getElementById('btn-toggle-weather');
     const btnCamera = document.getElementById('btn-toggle-camera');
     const btnMap = document.getElementById('btn-open-map');
+    const btnGarage = document.getElementById('btn-open-garage');
     const minimapTrigger = document.getElementById('minimap-click-trigger');
 
     if (btnTime) {
@@ -60,6 +72,13 @@ export class HUD {
       });
     }
 
+    if (btnGarage) {
+      btnGarage.addEventListener('click', () => {
+        this.audioManager.playUIBeep(640);
+        if (this.onOpenGarage) this.onOpenGarage();
+      });
+    }
+
     if (btnMap) {
       btnMap.addEventListener('click', () => {
         this.audioManager.playUIBeep(700);
@@ -83,18 +102,72 @@ export class HUD {
     if (this.hudRoot) this.hudRoot.classList.add('hidden');
   }
 
-  update(playerPos, cameraBearing) {
-    // Health & Stamina bars
+  setCrosshairAiming(isAiming) {
+    if (!this.crosshair) return;
+    if (isAiming) {
+      this.crosshair.classList.add('aiming');
+    } else {
+      this.crosshair.classList.remove('aiming');
+    }
+  }
+
+  updateAmmo(clip, reserve) {
+    if (this.ammoClip) this.ammoClip.innerText = clip;
+    if (this.ammoReserve) this.ammoReserve.innerText = reserve;
+  }
+
+  updateBRStats(aliveCount, secondsRemaining, isOutsideStorm) {
+    if (this.brStatusPanel) this.brStatusPanel.classList.remove('hidden');
+    if (this.brAliveCount) this.brAliveCount.innerText = aliveCount;
+
+    if (this.brStormTimer) {
+      const mins = Math.floor(secondsRemaining / 60);
+      const secs = secondsRemaining % 60;
+      this.brStormTimer.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    if (this.stormWarning) {
+      if (isOutsideStorm) {
+        this.stormWarning.classList.remove('hidden');
+      } else {
+        this.stormWarning.classList.add('hidden');
+      }
+    }
+  }
+
+  triggerKillfeed(text) {
+    if (!this.killfeed) return;
+    const item = document.createElement('div');
+    item.className = 'killfeed-item';
+    item.innerText = text;
+    this.killfeed.appendChild(item);
+
+    setTimeout(() => {
+      if (item.parentNode) item.parentNode.removeChild(item);
+    }, 4500);
+  }
+
+  update(playerPos, cameraBearing, vehicleNitro = null) {
+    // Health Bar
     if (this.healthBar) {
       const hpPct = Math.round((this.gameState.health / this.gameState.maxHealth) * 100);
       this.healthBar.style.width = `${hpPct}%`;
       this.healthVal.innerText = `${Math.round(this.gameState.health)} / ${this.gameState.maxHealth}`;
     }
 
+    // Stamina or Nitro Bar
     if (this.staminaBar) {
-      const stamPct = Math.round((this.gameState.stamina / this.gameState.maxStamina) * 100);
-      this.staminaBar.style.width = `${stamPct}%`;
-      this.staminaVal.innerText = `${stamPct}%`;
+      if (vehicleNitro !== null) {
+        const nitroPct = Math.round(vehicleNitro);
+        this.staminaBar.style.width = `${nitroPct}%`;
+        this.staminaVal.innerText = `NITRO: ${nitroPct}%`;
+        this.staminaBar.style.background = 'linear-gradient(90deg, #00e5ff 0%, #76ff03 100%)';
+      } else {
+        const stamPct = Math.round((this.gameState.stamina / this.gameState.maxStamina) * 100);
+        this.staminaBar.style.width = `${stamPct}%`;
+        this.staminaVal.innerText = `${stamPct}%`;
+        this.staminaBar.style.background = 'linear-gradient(90deg, #ff9100 0%, #ffd600 100%)';
+      }
     }
 
     // Compass
@@ -102,7 +175,7 @@ export class HUD {
       this.compassBearing.innerText = `${String(cameraBearing).padStart(3, '0')}°`;
     }
 
-    // Determine current district by distance to zone centers
+    // District pill determination
     let currentZone = ZONES.ZONE_A;
     let closestDist = Infinity;
 

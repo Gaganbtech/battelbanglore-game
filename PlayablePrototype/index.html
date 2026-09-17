@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BENGALURU: LAST CITY - Phase 1 Prototype</title>
+  <title>BENGALURU: LAST CITY - Phase 2</title>
   <link rel="stylesheet" href="./styles/game.css">
 </head>
 <body>
@@ -18,25 +18,25 @@
       <div class="menu-header">
         <div class="title-tag">Original Open-World Battle Royale</div>
         <h1 class="main-title">BENGALURU: LAST CITY</h1>
-        <div class="subtitle">Phase 1 Vertical Prototype</div>
+        <div class="subtitle">Phase 2: Supercars, Combat & Battle Royale</div>
       </div>
 
       <div class="menu-nav">
         <button id="btn-play" class="menu-btn primary">
-          <span>Start City Prototype</span>
+          <span>Explore City</span>
           <span>▶</span>
         </button>
-        <button id="btn-br" class="menu-btn disabled">
-          <span>Battle Royale</span>
-          <span class="badge">Phase 2</span>
+        <button id="btn-br" class="menu-btn" style="border-left-color: var(--accent-gold);">
+          <span>Battle Royale (Sky Drop)</span>
+          <span class="badge" style="background: rgba(255,193,7,0.2); border-color: var(--accent-gold); color: #ffd54f;">LIVE</span>
+        </button>
+        <button id="btn-garage" class="menu-btn" style="border-left-color: var(--accent-red);">
+          <span>Supercar Garage</span>
+          <span class="badge" style="background: rgba(255,23,68,0.2); border-color: var(--accent-red); color: #ff5252;">NEW</span>
         </button>
         <button id="btn-story" class="menu-btn disabled">
           <span>Story Campaign</span>
-          <span class="badge">Phase 2</span>
-        </button>
-        <button id="btn-garage" class="menu-btn disabled">
-          <span>Supercar Garage</span>
-          <span class="badge">Phase 2</span>
+          <span class="badge">Phase 3</span>
         </button>
         <button id="btn-settings" class="menu-btn">
           <span>Settings</span>
@@ -51,19 +51,19 @@
       <div class="menu-footer">
         <div class="engine-specs">
           <div class="spec-item">
-            <span class="spec-label">Engine Arch</span>
-            <span class="spec-value">Unreal Engine 5 C++ & WebGL Core</span>
+            <span class="spec-label">Combat Engine</span>
+            <span class="spec-value">AR-9 Bangalore Special & Ballistics</span>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Simulation</span>
-            <span class="spec-value">7 Bengaluru Districts & Elevated Metro</span>
+            <span class="spec-label">Vehicles</span>
+            <span class="spec-value">Vajra Hypercar & Nitro Boost</span>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Atmosphere</span>
-            <span class="spec-value">Dynamic Day/Night & Monsoon Rain</span>
+            <span class="spec-label">Transit</span>
+            <span class="spec-value">Automated Namma Metro Elevated Train</span>
           </div>
         </div>
-        <div class="prototype-version">v0.1.0-alpha • Prototype Build</div>
+        <div class="prototype-version">v0.2.0-beta • Phase 2 Build</div>
       </div>
     </div>
 
@@ -89,6 +89,18 @@
         </div>
 
         <div class="hud-top-right">
+          <!-- BR Alive Count & Storm Warning -->
+          <div id="br-status-panel" class="br-status-panel hidden">
+            <div class="br-alive-box">
+              <span class="br-alive-label">ALIVE</span>
+              <span id="br-alive-count" class="br-alive-val">100</span>
+            </div>
+            <div class="br-timer-box">
+              <span class="br-timer-label">STORM COLLAPSE</span>
+              <span id="br-storm-timer" class="br-timer-val">02:00</span>
+            </div>
+          </div>
+
           <div class="minimap-wrapper interactive" id="minimap-click-trigger" title="Click to open Full World Map (M)">
             <canvas id="minimap-canvas" width="180" height="180"></canvas>
             <div class="minimap-scanline"></div>
@@ -97,10 +109,27 @@
         </div>
       </div>
 
+      <!-- RETICLE / CROSSHAIR -->
+      <div id="weapon-crosshair" class="crosshair-container">
+        <div class="ch-bar ch-top"></div>
+        <div class="ch-bar ch-bottom"></div>
+        <div class="ch-bar ch-left"></div>
+        <div class="ch-bar ch-right"></div>
+        <div class="ch-dot"></div>
+      </div>
+
+      <!-- KILLFEED -->
+      <div id="killfeed-container" class="killfeed-container"></div>
+
+      <!-- OUT OF ZONE STORM WARNING -->
+      <div id="storm-warning-banner" class="storm-warning hidden">
+        ⚠️ OUTSIDE SAFE ZONE - TAKING STORM DAMAGE!
+      </div>
+
       <!-- INTERACTION PROMPT -->
       <div id="interaction-prompt" class="hidden">
         <span class="key-badge">E</span>
-        <span id="prompt-label" class="prompt-label">Enter Auto-Rickshaw</span>
+        <span id="prompt-label" class="prompt-label">Enter Vehicle</span>
       </div>
 
       <!-- BOTTOM BAR -->
@@ -118,7 +147,7 @@
 
           <div class="status-row">
             <div class="status-header">
-              <span>Stamina</span>
+              <span>Stamina / Nitro</span>
               <span id="stamina-value">100%</span>
             </div>
             <div class="bar-container">
@@ -127,8 +156,19 @@
           </div>
 
           <div class="controls-hint">
-            <strong>Controls:</strong> WASD: Move | SHIFT: Sprint | SPACE: Jump | C: Crouch | E: Interact/Drive | M: Map | ESC: Pause
+            <strong>Controls:</strong> WASD: Move/Drive | SHIFT: Sprint/Nitro | RMB: Aim | LMB: Shoot | R: Reload | E: Interact | M: Map | ESC: Pause
           </div>
+        </div>
+
+        <!-- WEAPON HUD STATUS -->
+        <div id="weapon-hud" class="weapon-hud-panel">
+          <div class="weapon-name">AR-9 BANGALORE SPECIAL</div>
+          <div class="weapon-ammo-display">
+            <span id="ammo-clip" class="ammo-clip">30</span>
+            <span class="ammo-divider">/</span>
+            <span id="ammo-reserve" class="ammo-reserve">120</span>
+          </div>
+          <div class="weapon-type-badge">FULL AUTO • 5.56mm</div>
         </div>
 
         <!-- QUICK TOGGLE CONTROLS FOR TESTING -->
@@ -136,6 +176,7 @@
           <button id="btn-toggle-time" class="quick-btn" title="Cycle Day / Sunset / Night">☀️ Time: Day</button>
           <button id="btn-toggle-weather" class="quick-btn" title="Toggle Clear / Monsoon Rain">🌧️ Weather: Clear</button>
           <button id="btn-toggle-camera" class="quick-btn" title="Toggle Camera Shoulder View">📷 Shoulder Cam</button>
+          <button id="btn-open-garage" class="quick-btn" title="Open Supercar Garage">🏎️ Garage</button>
           <button id="btn-open-map" class="quick-btn" title="Open World Map (M)">🗺️ Map (M)</button>
         </div>
       </div>
@@ -188,12 +229,55 @@
 
           <div class="legend-title" style="margin-top: 1rem;">Key Landmarks</div>
           <div style="font-size: 0.85rem; color: #aaa; line-height: 1.6;">
-            • <strong>Elevated Metro Station:</strong> Multi-level platform & viaduct<br>
+            • <strong>Elevated Metro Station:</strong> Active train docking platform<br>
             • <strong>IT Tech Towers:</strong> High-density glass offices<br>
             • <strong>Bellandur-style Urban Lake:</strong> Scenic water basin<br>
             • <strong>Highway Flyover:</strong> 4-lane elevated artery with ramps<br>
-            • <strong>Future BR Safe Zone:</strong> Indicated by golden ring
+            • <strong>Golden Ring:</strong> Current Battle Royale Safe Zone
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUPERCAR GARAGE MODAL -->
+    <div id="garage-modal" class="modal-overlay interactive hidden">
+      <div class="modal-card" style="width: 640px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 class="modal-title" style="border: none; padding: 0;">SUPERCAR CUSTOMIZATION GARAGE</h2>
+          <button id="btn-garage-close" class="map-close-btn" style="padding: 0.3rem 0.8rem;">✕</button>
+        </div>
+        <div class="subtitle" style="font-size: 1.1rem; color: var(--accent-cyan);">Vajra Hypercar • Bengaluru Special Edition</div>
+
+        <div class="setting-group">
+          <div class="setting-label"><span>Custom Paint Finish</span></div>
+          <div style="display: flex; gap: 0.8rem; margin-top: 0.4rem;">
+            <div class="color-swatch" data-color="d50000" style="background: #d50000; width: 42px; height: 42px; border-radius: 4px; cursor: pointer; border: 2px solid #fff;" title="Bengaluru Racing Crimson"></div>
+            <div class="color-swatch" data-color="00e5ff" style="background: #00e5ff; width: 42px; height: 42px; border-radius: 4px; cursor: pointer; border: 2px solid #555;" title="Cyber Cyan"></div>
+            <div class="color-swatch" data-color="ff9100" style="background: #ff9100; width: 42px; height: 42px; border-radius: 4px; cursor: pointer; border: 2px solid #555;" title="Saffron Gold"></div>
+            <div class="color-swatch" data-color="212121" style="background: #212121; width: 42px; height: 42px; border-radius: 4px; cursor: pointer; border: 2px solid #555;" title="Stealth Onyx"></div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label"><span>Aerodynamic Rear Wing</span></div>
+          <select id="select-spoiler" class="setting-select">
+            <option value="gt" selected>Carbon Fiber Aero GT Wing</option>
+            <option value="stock">Subtle Factory Lip Spoiler</option>
+            <option value="none">Wing Delete (Pure Drag)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(0,0,0,0.4); padding: 1rem; border-radius: 4px;">
+          <div><span style="color: #8899a6; font-size: 0.8rem;">TOP SPEED</span><br><strong style="font-size: 1.3rem; color: #fff;">260 km/h</strong></div>
+          <div><span style="color: #8899a6; font-size: 0.8rem;">0 - 100 KM/H</span><br><strong style="font-size: 1.3rem; color: #00e676;">2.2 Sec</strong></div>
+          <div><span style="color: #8899a6; font-size: 0.8rem;">BOOST SYSTEM</span><br><strong style="font-size: 1.3rem; color: var(--accent-cyan);">Twin Nitrous</strong></div>
+          <div><span style="color: #8899a6; font-size: 0.8rem;">DRIVE TYPE</span><br><strong style="font-size: 1.3rem; color: var(--accent-gold);">Torque AWD</strong></div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="btn-garage-drive" class="menu-btn primary" style="width: 100%; text-align: center; justify-content: center; font-size: 1.2rem;">
+            Test Drive In Bengaluru
+          </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// Main Menu, Settings modal, and Pause Menu controller
+// Main Menu, Settings modal, Pause Menu, and Mode Routing for Phase 2
 import { GameModeState } from '../core/GameState.js';
 
 export class MainMenu {
@@ -13,6 +13,8 @@ export class MainMenu {
     this.districtMapModal = document.getElementById('district-map-modal');
 
     this.onStartGame = null;
+    this.onStartBattleRoyale = null;
+    this.onOpenGarage = null;
     this.onResumeGame = null;
     this.onQuitToMenu = null;
 
@@ -20,7 +22,7 @@ export class MainMenu {
   }
 
   initEvents() {
-    // Play Button
+    // Play Button (City Exploration)
     const btnPlay = document.getElementById('btn-play');
     if (btnPlay) {
       btnPlay.addEventListener('click', () => {
@@ -28,6 +30,27 @@ export class MainMenu {
         this.audioManager.playUIBeep(640);
         this.hideMenu();
         if (this.onStartGame) this.onStartGame();
+      });
+    }
+
+    // Battle Royale Sky Drop Button
+    const btnBR = document.getElementById('btn-br');
+    if (btnBR) {
+      btnBR.addEventListener('click', () => {
+        this.audioManager.init();
+        this.audioManager.playUIBeep(780);
+        this.hideMenu();
+        if (this.onStartBattleRoyale) this.onStartBattleRoyale();
+      });
+    }
+
+    // Garage Button
+    const btnGarage = document.getElementById('btn-garage');
+    if (btnGarage) {
+      btnGarage.addEventListener('click', () => {
+        this.audioManager.init();
+        this.audioManager.playUIBeep(640);
+        if (this.onOpenGarage) this.onOpenGarage();
       });
     }
 
@@ -45,7 +68,7 @@ export class MainMenu {
     if (btnExit) {
       btnExit.addEventListener('click', () => {
         this.audioManager.playUIBeep(350);
-        alert('Thank you for exploring Bengaluru: Last City (Phase 1 Prototype).');
+        alert('Thank you for playing Bengaluru: Last City.');
       });
     }
 

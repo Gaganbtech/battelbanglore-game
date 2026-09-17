@@ -1,4 +1,4 @@
-// BENGALURU: LAST CITY - Master Prototype Engine
+// BENGALURU: LAST CITY - Master Prototype Engine (Phase 2)
 import * as THREE from 'three';
 import { GameState, GameModeState } from './core/GameState.js';
 import { InputManager } from './core/InputManager.js';
@@ -12,14 +12,21 @@ import { MetroSystem } from './world/MetroSystem.js';
 import { CityBuilder } from './world/CityBuilder.js';
 import { DayNightCycle } from './world/DayNightCycle.js';
 import { WeatherSystem } from './world/WeatherSystem.js';
+import { MovingMetroTrain } from './world/MovingMetroTrain.js';
 
 import { TrafficSystem } from './simulation/TrafficSystem.js';
 import { CivilianNPCSystem } from './simulation/CivilianNPCSystem.js';
 import { DrivableVehicle } from './simulation/DrivableVehicle.js';
+import { Supercar } from './simulation/Supercar.js';
+
+import { WeaponSystem } from './combat/WeaponSystem.js';
+import { LootSpawner } from './combat/LootSpawner.js';
+import { BattleRoyaleManager } from './gamemodes/BattleRoyaleManager.js';
 
 import { MinimapRenderer } from './ui/Minimap.js';
 import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
+import { GarageMenu } from './ui/GarageMenu.js';
 
 class BengaluruGame {
   constructor() {
@@ -47,11 +54,13 @@ class BengaluruGame {
     this.roadNetwork = new RoadNetwork(this.scene);
     this.metroSystem = new MetroSystem(this.scene);
     this.cityBuilder = new CityBuilder(this.scene);
+    this.movingMetro = new MovingMetroTrain(this.scene, this.audioManager);
 
-    // Dynamic Simulation & Traffic
+    // Vehicles: Auto-Rickshaw & Phase 2 Vajra Hypercar
     this.trafficSystem = new TrafficSystem(this.scene);
     this.civilianNPCSystem = new CivilianNPCSystem(this.scene);
     this.drivableAuto = new DrivableVehicle(this.scene, 'auto', new THREE.Vector3(8, 0, 14));
+    this.supercar = new Supercar(this.scene, new THREE.Vector3(-12, 0, 16));
 
     // Atmosphere
     this.dayNightCycle = new DayNightCycle(
@@ -63,13 +72,20 @@ class BengaluruGame {
     );
     this.weatherSystem = new WeatherSystem(this.scene, this.audioManager);
 
-    // Player & Camera
+    // Player & Third-Person Camera
     this.player = new PlayerCharacter(this.scene, this.gameState, this.audioManager);
     this.thirdPersonCamera = new ThirdPersonCamera(this.camera, this.renderer.domElement, this.gameState);
+
+    // Phase 2 Combat & Loot Systems
+    this.weaponSystem = new WeaponSystem(this.scene, this.camera, this.audioManager);
+    this.weaponSystem.attachToPlayer(this.player.rightArm);
+    this.lootSpawner = new LootSpawner(this.scene);
+    this.brManager = new BattleRoyaleManager(this.scene, this.gameState, this.audioManager);
 
     // UI Systems
     this.hud = new HUD(this.gameState, this.audioManager);
     this.mainMenu = new MainMenu(this.gameState, this.audioManager);
+    this.garageMenu = new GarageMenu(this.supercar, this.audioManager);
     this.minimap = new MinimapRenderer(
       document.getElementById('minimap-canvas'),
       document.getElementById('world-map-canvas')
@@ -77,6 +93,7 @@ class BengaluruGame {
 
     this.clock = new THREE.Clock();
     this.setupUICallbacks();
+    this.setupCombatInputs();
     this.setupWindowEvents();
 
     // Start rendering loop
@@ -85,11 +102,46 @@ class BengaluruGame {
   }
 
   setupUICallbacks() {
-    // Start Game from Main Menu
+    // Start City Exploration
     this.mainMenu.onStartGame = () => {
       this.gameState.setState(GameModeState.PLAYING);
       this.hud.show();
       this.inputManager.requestPointerLock();
+    };
+
+    // Start Battle Royale Sky Drop
+    this.mainMenu.onStartBattleRoyale = () => {
+      this.gameState.setState(GameModeState.PLAYING);
+      this.hud.show();
+      this.brManager.startBattleRoyale(this.player);
+      this.inputManager.requestPointerLock();
+    };
+
+    // Open Garage
+    this.mainMenu.onOpenGarage = () => {
+      this.garageMenu.show();
+      this.inputManager.exitPointerLock();
+    };
+
+    this.hud.onOpenGarage = () => {
+      this.garageMenu.show();
+      this.inputManager.exitPointerLock();
+    };
+
+    this.garageMenu.onTestDriveCallback = () => {
+      this.mainMenu.hideMenu();
+      this.gameState.setState(GameModeState.PLAYING);
+      this.hud.show();
+      this.enterVehicle(this.supercar);
+      this.inputManager.requestPointerLock();
+    };
+
+    this.garageMenu.onCloseCallback = () => {
+      if (this.gameState.currentState === GameModeState.MAIN_MENU) {
+        this.mainMenu.showMenu();
+      } else {
+        this.inputManager.requestPointerLock();
+      }
     };
 
     // Pause & Resume
@@ -159,10 +211,68 @@ class BengaluruGame {
       if (this.gameState.isInVehicle) {
         this.exitVehicle();
       } else {
-        const distToVehicle = this.drivableAuto.getInteractionDistance(this.player.position);
-        if (distToVehicle < 4.2) {
-          this.enterVehicle(this.drivableAuto);
+        // 1. Check Supercar
+        const distToSupercar = this.supercar.getInteractionDistance(this.player.position);
+        if (distToSupercar < 4.5) {
+          this.enterVehicle(this.supercar);
+          return;
         }
+
+        // 2. Check Auto-Rickshaw
+        const distToAuto = this.drivableAuto.getInteractionDistance(this.player.position);
+        if (distToAuto < 4.2) {
+          this.enterVehicle(this.drivableAuto);
+          return;
+        }
+
+        // 3. Check Ground Loot Crate
+        const crate = this.lootSpawner.getClosestCrate(this.player.position, 3.5);
+        if (crate) {
+          crate.isOpened = true;
+          crate.mesh.visible = false;
+          this.weaponSystem.clipAmmo = 30;
+          this.weaponSystem.reserveAmmo = 120;
+          this.audioManager.playUIBeep(880);
+          this.hud.triggerKillfeed(`Equipped ${crate.name}!`);
+          return;
+        }
+      }
+    };
+  }
+
+  setupCombatInputs() {
+    // Left Click: Shoot
+    this.inputManager.onFireStartCallback = () => {
+      if (!this.gameState.isInVehicle && this.weaponSystem) {
+        this.weaponSystem.startFire();
+      }
+    };
+
+    this.inputManager.onFireStopCallback = () => {
+      if (this.weaponSystem) {
+        this.weaponSystem.stopFire();
+      }
+    };
+
+    // Right Click: Aim Down Sights (ADS)
+    this.inputManager.onAimStartCallback = () => {
+      if (!this.gameState.isInVehicle) {
+        this.weaponSystem.setAiming(true);
+        this.hud.setCrosshairAiming(true);
+        this.thirdPersonCamera.targetFOV = 52.0; // Zoom
+      }
+    };
+
+    this.inputManager.onAimStopCallback = () => {
+      this.weaponSystem.setAiming(false);
+      this.hud.setCrosshairAiming(false);
+      this.thirdPersonCamera.targetFOV = 75.0;
+    };
+
+    // R Key: Reload
+    this.inputManager.onReloadCallback = () => {
+      if (this.weaponSystem) {
+        this.weaponSystem.reload();
       }
     };
   }
@@ -217,30 +327,46 @@ class BengaluruGame {
           this.player.isSprinting
         );
 
-        // Check interaction with vehicle
-        const distToVehicle = this.drivableAuto.getInteractionDistance(this.player.position);
-        if (distToVehicle < 4.2) {
+        // Check interaction prompts
+        const distSupercar = this.supercar.getInteractionDistance(this.player.position);
+        const distAuto = this.drivableAuto.getInteractionDistance(this.player.position);
+        const lootCrate = this.lootSpawner.getClosestCrate(this.player.position);
+
+        if (distSupercar < 4.5) {
+          this.hud.showInteractionPrompt('Drive Vajra Hypercar [E]');
+        } else if (distAuto < 4.2) {
           this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
+        } else if (lootCrate) {
+          this.hud.showInteractionPrompt(`Pick up ${lootCrate.name} [E]`);
         } else if (Math.abs(this.player.position.x) < 35 && Math.abs(this.player.position.z - (-20)) < 15) {
-          this.hud.showInteractionPrompt('Explore Namma Metro Station Platform');
+          this.hud.showInteractionPrompt('Board Namma Metro Train Platform');
         } else {
           this.hud.hideInteractionPrompt();
         }
       }
 
-      // Update World Systems
+      // Update Phase 2 Systems
+      this.weaponSystem.update(delta, this.camera, this.gameState.isInVehicle);
+      this.lootSpawner.update(delta);
+      this.movingMetro.update(delta, this.player);
+      this.brManager.update(delta, this.player, this.hud);
+
+      // Update Phase 1 Systems
       this.trafficSystem.update(delta);
       this.civilianNPCSystem.update(delta, this.player.position);
       this.dayNightCycle.update(delta);
       this.weatherSystem.update(delta, this.player.position);
 
-      // Update HUD & Radar
-      const activePos = this.gameState.isInVehicle ? this.drivableAuto.position : this.player.position;
+      // Update HUD, Ammo, and Minimap
+      const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
       const compassBearing = this.thirdPersonCamera.getCompassBearing();
-      this.hud.update(activePos, compassBearing);
+      const nitroVal = (this.gameState.isInVehicle && this.gameState.activeVehicle === this.supercar) ? this.supercar.nitroFuel : null;
+      
+      this.hud.update(activePos, compassBearing, nitroVal);
+      this.hud.updateAmmo(this.weaponSystem.clipAmmo, this.weaponSystem.reserveAmmo);
       this.minimap.renderMinimap(activePos, this.thirdPersonCamera.getYaw(), this.gameState.currentZone);
     } else if (this.gameState.currentState === GameModeState.MAP_OPEN) {
-      const activePos = this.gameState.isInVehicle ? this.drivableAuto.position : this.player.position;
+      const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
       this.minimap.renderWorldMap(activePos, this.thirdPersonCamera.getYaw());
     }
 

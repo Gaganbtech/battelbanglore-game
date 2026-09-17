@@ -1,4 +1,4 @@
-// Input Manager for keyboard and mouse look controls
+// Input Manager supporting keyboard, mouse look, pointer lock, ADS (RMB), and shooting (LMB)
 
 export class InputManager {
   constructor(domElement, gameState) {
@@ -15,15 +15,23 @@ export class InputManager {
       crouch: false,
       interact: false,
       toggleMap: false,
-      pause: false
+      pause: false,
+      reload: false
     };
 
+    this.isLMBDown = false;
+    this.isRMBDown = false;
     this.mouseDelta = { x: 0, y: 0 };
     this.isPointerLocked = false;
 
     this.onInteractCallback = null;
     this.onToggleMapCallback = null;
     this.onPauseCallback = null;
+    this.onReloadCallback = null;
+    this.onFireStartCallback = null;
+    this.onFireStopCallback = null;
+    this.onAimStartCallback = null;
+    this.onAimStopCallback = null;
 
     this.initListeners();
   }
@@ -32,6 +40,10 @@ export class InputManager {
     window.addEventListener('keydown', (e) => this.handleKeyDown(e));
     window.addEventListener('keyup', (e) => this.handleKeyUp(e));
     window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+    this.domElement.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+    window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    this.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
     this.domElement.addEventListener('click', () => {
       if (this.gameState.isPlaying() && !this.isPointerLocked) {
@@ -54,6 +66,30 @@ export class InputManager {
     }
   }
 
+  handleMouseDown(e) {
+    if (!this.gameState.isPlaying()) return;
+
+    if (e.button === 0) {
+      // Left Click: Shoot
+      this.isLMBDown = true;
+      if (this.onFireStartCallback) this.onFireStartCallback();
+    } else if (e.button === 2) {
+      // Right Click: Aim Down Sights (ADS)
+      this.isRMBDown = true;
+      if (this.onAimStartCallback) this.onAimStartCallback();
+    }
+  }
+
+  handleMouseUp(e) {
+    if (e.button === 0) {
+      this.isLMBDown = false;
+      if (this.onFireStopCallback) this.onFireStopCallback();
+    } else if (e.button === 2) {
+      this.isRMBDown = false;
+      if (this.onAimStopCallback) this.onAimStopCallback();
+    }
+  }
+
   handleKeyDown(e) {
     const code = e.code;
     
@@ -64,6 +100,10 @@ export class InputManager {
     if (code === 'Space') this.keys.jump = true;
     if (code === 'ShiftLeft' || code === 'ShiftRight') this.keys.sprint = true;
     if (code === 'KeyC') this.keys.crouch = true;
+
+    if (code === 'KeyR') {
+      if (this.onReloadCallback) this.onReloadCallback();
+    }
 
     if (code === 'KeyE') {
       if (this.onInteractCallback) this.onInteractCallback();
@@ -90,7 +130,7 @@ export class InputManager {
   }
 
   handleMouseMove(e) {
-    if (this.isPointerLocked || e.buttons === 1) {
+    if (this.isPointerLocked || e.buttons === 1 || e.buttons === 2) {
       this.mouseDelta.x += e.movementX * this.gameState.mouseSensitivity;
       this.mouseDelta.y += e.movementY * this.gameState.mouseSensitivity;
     }
