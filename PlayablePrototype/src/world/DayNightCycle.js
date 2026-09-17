@@ -12,15 +12,15 @@ export class DayNightCycle {
     // Sun / Moon directional light
     this.sunLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 2048;
-    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.mapSize.width = 1024;
+    this.sunLight.shadow.mapSize.height = 1024;
     this.sunLight.shadow.camera.near = 10;
-    this.sunLight.shadow.camera.far = 500;
-    this.sunLight.shadow.camera.left = -200;
-    this.sunLight.shadow.camera.right = 200;
-    this.sunLight.shadow.camera.top = 200;
-    this.sunLight.shadow.camera.bottom = -200;
-    this.sunLight.shadow.bias = -0.0005;
+    this.sunLight.shadow.camera.far = 280;
+    this.sunLight.shadow.camera.left = -60;
+    this.sunLight.shadow.camera.right = 60;
+    this.sunLight.shadow.camera.top = 60;
+    this.sunLight.shadow.camera.bottom = -60;
+    this.sunLight.shadow.bias = -0.0003;
     this.scene.add(this.sunLight);
 
     // Ambient / Hemisphere light

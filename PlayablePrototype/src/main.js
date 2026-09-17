@@ -8,14 +8,11 @@ import { PlayerCharacter } from './player/PlayerCharacter.js';
 import { ThirdPersonCamera } from './player/ThirdPersonCamera.js';
 
 import { RoadNetwork } from './world/RoadNetwork.js';
-import { MetroSystem } from './world/MetroSystem.js';
 import { CityBuilder } from './world/CityBuilder.js';
 import { DayNightCycle } from './world/DayNightCycle.js';
 import { WeatherSystem } from './world/WeatherSystem.js';
-import { MovingMetroTrain } from './world/MovingMetroTrain.js';
 
 import { TrafficSystem } from './simulation/TrafficSystem.js';
-import { CivilianNPCSystem } from './simulation/CivilianNPCSystem.js';
 import { DrivableVehicle } from './simulation/DrivableVehicle.js';
 import { Supercar } from './simulation/Supercar.js';
 
@@ -64,6 +61,12 @@ import { MissionManager } from './missions/MissionManager.js';
 import { MissionHUD } from './ui/MissionHUD.js';
 import { EconomyProgression } from './core/EconomyProgression.js';
 
+// Phase 5 Performance Overhaul & Authentic Bengaluru Road Systems
+import { PerformanceProfiler } from './core/PerformanceProfiler.js';
+import { InstancedCityInfrastructure } from './world/InstancedCityInfrastructure.js';
+import { BengaluruRoadSystem } from './world/BengaluruRoadSystem.js';
+import { WorldPartitionManager } from './world/WorldPartitionManager.js';
+
 class BengaluruGame {
   constructor() {
     this.container = document.getElementById('game-container');
@@ -74,9 +77,9 @@ class BengaluruGame {
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.container.appendChild(this.renderer.domElement);
@@ -86,15 +89,18 @@ class BengaluruGame {
     this.audioManager = new AudioManager(this.gameState);
     this.inputManager = new InputManager(this.renderer.domElement, this.gameState);
 
+    // Phase 5 Performance & Partitioning Architecture
+    this.profiler = new PerformanceProfiler(this.renderer, this.scene);
+    this.worldPartition = new WorldPartitionManager(this.scene);
+    this.bengaluruRoads = new BengaluruRoadSystem(this.scene);
+    this.instancedInfrastructure = new InstancedCityInfrastructure(this.scene);
+
     // World Infrastructure
     this.roadNetwork = new RoadNetwork(this.scene);
-    this.metroSystem = new MetroSystem(this.scene);
     this.cityBuilder = new CityBuilder(this.scene);
-    this.movingMetro = new MovingMetroTrain(this.scene, this.audioManager);
 
     // Vehicles: Auto-Rickshaw & Phase 2 Vajra Hypercar
     this.trafficSystem = new TrafficSystem(this.scene);
-    this.civilianNPCSystem = new CivilianNPCSystem(this.scene);
     this.drivableAuto = new DrivableVehicle(this.scene, 'auto', new THREE.Vector3(8, 0, 14));
     this.supercar = new Supercar(this.scene, new THREE.Vector3(-12, 0, 16));
 
@@ -748,12 +754,12 @@ class BengaluruGame {
       this.weaponSystem.setAiming(isAiming, isADS);
       this.weaponSystem.update(delta, this.camera, this.gameState.isInVehicle, this.thirdPersonCamera);
       this.lootSpawner.update(delta);
-      this.movingMetro.update(delta, this.player);
       this.brManager.update(delta, this.player, this.hud);
 
-      // Update Phase 1 Systems
-      this.trafficSystem.update(delta);
-      this.civilianNPCSystem.update(delta, this.player.position);
+      // Update Phase 5 Performance & Partitioning Systems
+      this.profiler.update();
+      this.worldPartition.update(this.player.position);
+      this.trafficSystem.update(delta, this.player.position);
       this.dayNightCycle.update(delta);
       this.weatherSystem.update(delta, this.player.position);
 
