@@ -371,6 +371,15 @@ export class WeaponSystem {
         currentModel.userData.magazine.position.y = -0.16;
       }
 
+      // Mechanical bolt slide cycling recovery
+      if (currentModel.userData.ejectionPort) {
+        currentModel.userData.ejectionPort.position.z = THREE.MathUtils.lerp(
+          currentModel.userData.ejectionPort.position.z,
+          0.02,
+          delta * 22
+        );
+      }
+
       // Decay muzzle flash opacity
       if (currentModel.userData.flashMesh && currentModel.userData.flashMesh.material.opacity > 0) {
         currentModel.userData.flashMesh.material.opacity = Math.max(0, currentModel.userData.flashMesh.material.opacity - delta * 25);
@@ -436,10 +445,14 @@ export class WeaponSystem {
     const currentModel = this.weaponMeshes[this.currentWeaponKey];
     if (!currentModel) return;
 
-    // 1. Recoil Impulse
+    // 1. Recoil Impulse & Mechanical Bolt Kick
     this.weaponRecoilZ = 0.08;
     this.weaponRecoilPitch = -this.activeConfig.recoilVertical * 1.5;
     this.weaponRecoilYaw = (Math.random() - 0.5) * this.activeConfig.recoilHorizontal * 2.0;
+
+    if (currentModel.userData.ejectionPort) {
+      currentModel.userData.ejectionPort.position.z = -0.04; // Kick back
+    }
 
     // Apply Camera Recoil Kick
     if (cameraSystem) {

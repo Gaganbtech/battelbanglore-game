@@ -5,7 +5,7 @@ export class PerformanceProfiler {
     this.renderer = renderer;
     this.scene = scene;
 
-    this.enabled = true;
+    this.enabled = false;
     this.fps = 60;
     this.frameTime = 16.67;
     this.avgFps = 60;
@@ -45,6 +45,7 @@ export class PerformanceProfiler {
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px);
       user-select: none;
+      display: none;
     `;
 
     this.container.innerHTML = `

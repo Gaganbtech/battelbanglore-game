@@ -10,7 +10,7 @@ export class MinimapRenderer {
     this.worldCtx = worldMapCanvas ? worldMapCanvas.getContext('2d') : null;
   }
 
-  renderMinimap(playerPos, playerYaw, currentZoneName) {
+  renderMinimap(playerPos, playerYaw, currentZoneName, safeZoneData = null) {
     if (!this.miniCtx) return;
 
     const ctx = this.miniCtx;
@@ -21,16 +21,58 @@ export class MinimapRenderer {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Dark grid background
+    // Dark radar background
     ctx.save();
-    ctx.fillStyle = '#080e18';
+    ctx.fillStyle = '#070c14';
     ctx.fillRect(0, 0, w, h);
 
     // World-to-minimap zoom scale
-    const zoom = 0.55;
+    const zoom = 0.52;
+
+    // Radar distance range rings
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+    ctx.lineWidth = 1;
+    [25, 50, 75].forEach(r => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Crosshairs
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.beginPath();
+    ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+    ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+    ctx.stroke();
+
+    // Draw building footprints relative to player
+    const buildingFootprints = [
+      { x: -35, z: 30, w: 24, h: 22, color: '#1a2332' },
+      { x: -70, z: 25, w: 28, h: 20, color: '#16202c' },
+      { x: 35, z: -35, w: 30, h: 26, color: '#132130' },
+      { x: 75, z: -40, w: 32, h: 28, color: '#1a2332' },
+      { x: -45, z: -70, w: 22, h: 26, color: '#16202c' },
+      { x: 50, z: 60, w: 26, h: 22, color: '#1a2332' },
+      { x: -110, z: 40, w: 34, h: 30, color: '#132130' },
+      { x: 120, z: -70, w: 38, h: 32, color: '#16202c' }
+    ];
+
+    buildingFootprints.forEach(b => {
+      const bx = cx + (b.x - playerPos.x) * zoom;
+      const bz = cy - (b.z - playerPos.z) * zoom;
+      const bw = b.w * zoom;
+      const bh = b.h * zoom;
+
+      if (bx + bw > 0 && bx < w && bz + bh > 0 && bz < h) {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(bx - bw / 2, bz - bh / 2, bw, bh);
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+        ctx.strokeRect(bx - bw / 2, bz - bh / 2, bw, bh);
+      }
+    });
 
     // Draw roads relative to player position
-    ctx.strokeStyle = '#222d3d';
+    ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 14 * zoom;
 
     // EW Road (z = 0)
@@ -49,8 +91,8 @@ export class MinimapRenderer {
 
     // Metro Line (z = -20) (Purple)
     const metroY = cy - (-20 - playerPos.z) * zoom;
-    ctx.strokeStyle = '#7b1fa2';
-    ctx.lineWidth = 5 * zoom;
+    ctx.strokeStyle = '#9333ea';
+    ctx.lineWidth = 4 * zoom;
     ctx.beginPath();
     ctx.moveTo(0, metroY);
     ctx.lineTo(w, metroY);
@@ -58,32 +100,38 @@ export class MinimapRenderer {
 
     // Metro Station Landmark Marker
     const metroStationX = cx + (0 - playerPos.x) * zoom;
-    ctx.fillStyle = '#ab47bc';
+    ctx.fillStyle = '#c084fc';
     ctx.beginPath();
-    ctx.arc(metroStationX, metroY, 5, 0, Math.PI * 2);
+    ctx.arc(metroStationX, metroY, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Flyover Line (Yellow)
-    const flyoverX = cx + (50 - playerPos.x) * zoom;
-    ctx.strokeStyle = '#fbc02d';
-    ctx.lineWidth = 6 * zoom;
-    ctx.beginPath();
-    ctx.moveTo(flyoverX, 0);
-    ctx.lineTo(flyoverX, h);
-    ctx.stroke();
+    // Safe Zone Circle (BR)
+    if (safeZoneData) {
+      const zx = cx + (safeZoneData.centerX - playerPos.x) * zoom;
+      const zy = cy - (safeZoneData.centerZ - playerPos.z) * zoom;
+      const zr = safeZoneData.radius * zoom;
+
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(zx, zy, zr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // Player position (Center of radar)
-    ctx.fillStyle = '#00e5ff';
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Player heading cone / arrow
+    // Player heading arrow
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(-playerYaw);
 
-    ctx.fillStyle = '#ff9800';
+    ctx.fillStyle = '#f59e0b';
     ctx.beginPath();
     ctx.moveTo(0, -9);
     ctx.lineTo(-5, 4);

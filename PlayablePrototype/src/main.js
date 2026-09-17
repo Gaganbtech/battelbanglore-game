@@ -61,11 +61,16 @@ import { MissionManager } from './missions/MissionManager.js';
 import { MissionHUD } from './ui/MissionHUD.js';
 import { EconomyProgression } from './core/EconomyProgression.js';
 
-// Phase 5 Performance Overhaul & Authentic Bengaluru Road Systems
+// Phase 5 Performance Overhaul & Authentic Bengaluru Systems
 import { PerformanceProfiler } from './core/PerformanceProfiler.js';
 import { InstancedCityInfrastructure } from './world/InstancedCityInfrastructure.js';
 import { BengaluruRoadSystem } from './world/BengaluruRoadSystem.js';
 import { WorldPartitionManager } from './world/WorldPartitionManager.js';
+import { RealisticLighting } from './world/RealisticLighting.js';
+import { AdvancedWeatherWaterlogging } from './world/AdvancedWeatherWaterlogging.js';
+import { RealisticHumanoidCharacter } from './player/RealisticHumanoidCharacter.js';
+import { BengaluruDistrictArchitectures } from './world/BengaluruDistrictArchitectures.js';
+import { ProductionAudit } from './core/ProductionAudit.js';
 
 class BengaluruGame {
   constructor() {
@@ -95,9 +100,32 @@ class BengaluruGame {
     this.bengaluruRoads = new BengaluruRoadSystem(this.scene);
     this.instancedInfrastructure = new InstancedCityInfrastructure(this.scene);
 
+    // Physically Based Lighting & Advanced Monsoon Simulation
+    this.realisticLighting = new RealisticLighting(this.scene, this.renderer);
+    this.advancedWeather = new AdvancedWeatherWaterlogging(this.scene, this.realisticLighting, this.audioManager);
+
+    // Authentic Bengaluru District Architecture Templates
+    this.districtArchitectures = new BengaluruDistrictArchitectures();
+    const mgArcade = this.districtArchitectures.createMGRoadArcade(26, 22, 28);
+    mgArcade.position.set(-45, 0, 40);
+    this.scene.add(mgArcade);
+
+    const techTower = this.districtArchitectures.createTechCurtainWallTower(32, 28, 62);
+    techTower.position.set(130, 0, -90);
+    this.scene.add(techTower);
+
+    const peenyaShed = this.districtArchitectures.createPeenyaIndustrialShed(36, 44, 16);
+    peenyaShed.position.set(-110, 0, -110);
+    this.scene.add(peenyaShed);
+
+    const residencyApt = this.districtArchitectures.createResidencyApartment(28, 24, 32);
+    residencyApt.position.set(65, 0, 80);
+    this.scene.add(residencyApt);
+
     // World Infrastructure
     this.roadNetwork = new RoadNetwork(this.scene);
     this.cityBuilder = new CityBuilder(this.scene);
+    this.cityBuilder.colliders.push(mgArcade.children[0], techTower.children[0], peenyaShed.children[0], residencyApt.children[0]);
 
     // Vehicles: Auto-Rickshaw & Phase 2 Vajra Hypercar
     this.trafficSystem = new TrafficSystem(this.scene);
@@ -120,9 +148,12 @@ class BengaluruGame {
     );
     this.weatherSystem = new WeatherSystem(this.scene, this.audioManager, this.roadNetwork);
 
-    // Player & Third-Person Camera
-    this.player = new PlayerCharacter(this.scene, this.gameState, this.audioManager);
+    // Realistic Humanoid Character & Third-Person Camera with Collision Avoidance
+    this.player = new RealisticHumanoidCharacter(this.scene, this.gameState, this.audioManager);
     this.thirdPersonCamera = new ThirdPersonCamera(this.camera, this.renderer.domElement, this.gameState);
+
+    // Automated QA Production Audit
+    this.productionAudit = new ProductionAudit(this.renderer, this.scene, this.profiler, this.worldPartition, this.player);
 
     // Phase 2 Combat & Loot Systems
     this.weaponSystem = new WeaponSystem(this.scene, this.camera, this.audioManager);
@@ -680,7 +711,7 @@ class BengaluruGame {
             this.player.isCrouched,
             isAiming,
             isADS,
-            [],
+            this.cityBuilder.colliders,
             currentDeck
           );
 
@@ -756,12 +787,14 @@ class BengaluruGame {
       this.lootSpawner.update(delta);
       this.brManager.update(delta, this.player, this.hud);
 
-      // Update Phase 5 Performance & Partitioning Systems
+      // Update Phase 5 Performance & Atmosphere Systems
       this.profiler.update();
       this.worldPartition.update(this.player.position);
       this.trafficSystem.update(delta, this.player.position);
       this.dayNightCycle.update(delta);
       this.weatherSystem.update(delta, this.player.position);
+      this.realisticLighting.update(delta, this.player.position);
+      this.advancedWeather.update(delta, this.player.position, this.trafficSystem.vehicles);
 
       // Update HUD, Ammo, and Minimap
       const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
@@ -777,7 +810,12 @@ class BengaluruGame {
         this.weaponSystem.reserveAmmo,
         this.weaponSystem.currentWeaponKey
       );
-      this.minimap.renderMinimap(activePos, this.thirdPersonCamera.getYaw(), this.gameState.currentZone);
+      this.minimap.renderMinimap(
+        activePos,
+        this.thirdPersonCamera.getYaw(),
+        this.gameState.currentZone,
+        zoneData ? { centerX: this.brZoneManager.center.x, centerZ: this.brZoneManager.center.z, radius: this.brZoneManager.currentRadius } : null
+      );
     } else if (this.gameState.currentState === GameModeState.MAP_OPEN) {
       const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;
       this.minimap.renderWorldMap(activePos, this.thirdPersonCamera.getYaw());

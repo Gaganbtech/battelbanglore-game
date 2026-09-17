@@ -39,6 +39,16 @@ export class ThirdPersonCamera {
     this.shakeIntensity = 0;
     this.shakeDecay = 6.0;
     this.landingImpulse = 0;
+
+    // Raycaster for Triple-Ray Collision Testing
+    this.raycaster = new THREE.Raycaster();
+
+    // Shoulder switch on V key
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'v' && !e.repeat) {
+        this.toggleShoulderSide();
+      }
+    });
   }
 
   update(delta, targetPosition, mouseDelta, isSprinting = false, isCrouched = false, isAiming = false, isADS = false, sceneColliders = [], busDeck = null) {
@@ -132,6 +142,33 @@ export class ThirdPersonCamera {
     const cameraOffsetY = verticalDistance;
 
     const idealPosition = this.smoothedLookTarget.clone().add(new THREE.Vector3(cameraOffsetX, cameraOffsetY, cameraOffsetZ));
+
+    // Triple-Ray Collision Test against Obstacles / Walls / Vehicles
+    let actualDistance = this.currentDistance;
+    if (sceneColliders && sceneColliders.length > 0) {
+      const cameraDir = idealPosition.clone().sub(this.smoothedLookTarget).normalize();
+      const rightOffset = right.clone().multiplyScalar(0.18);
+
+      const rayOrigins = [
+        this.smoothedLookTarget.clone(),
+        this.smoothedLookTarget.clone().add(rightOffset),
+        this.smoothedLookTarget.clone().sub(rightOffset)
+      ];
+
+      for (const origin of rayOrigins) {
+        this.raycaster.set(origin, cameraDir);
+        this.raycaster.far = this.currentDistance;
+        const hits = this.raycaster.intersectObjects(sceneColliders, false);
+        if (hits.length > 0 && hits[0].distance < actualDistance) {
+          actualDistance = Math.max(0.5, hits[0].distance - 0.22);
+        }
+      }
+    }
+
+    if (actualDistance < this.currentDistance) {
+      const cameraDir = idealPosition.clone().sub(this.smoothedLookTarget).normalize();
+      idealPosition.copy(this.smoothedLookTarget).addScaledVector(cameraDir, actualDistance);
+    }
 
     // Ground & Obstacle Collision Cushion
     const minHeightAboveGround = (targetPosition.y > 10.0) ? 14.5 : (targetPosition.y > 2.0 ? targetPosition.y - 0.2 : 0.5);
