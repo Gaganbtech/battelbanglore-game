@@ -1,0 +1,12 @@
+# Build & Dependencies
+node_modules/
+dist/
+.DS_Store
+
+# Unreal Engine artifacts
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.VC.db
+*.opendb
