@@ -34,6 +34,23 @@ import { BusRouteManager } from './transport/BusRouteManager.js';
 import { BusStopSystem } from './transport/BusStopSystem.js';
 import { PassengerNPCSystem } from './transport/PassengerNPCSystem.js';
 
+// Phase 3 Master Battle Royale Framework
+import { EBattleRoyaleMatchState } from './gamemodes/BattleRoyaleMatchState.js';
+import { BattleRoyaleGameState, BattleRoyaleGameMode } from './gamemodes/BattleRoyaleServerArchitecture.js';
+import { MatchmakingManager } from './gamemodes/MatchmakingManager.js';
+import { CargoAircraft } from './world/CargoAircraft.js';
+import { FreefallParachuteController, EAirFlightState } from './player/FreefallParachuteController.js';
+import { getDistrictAtPosition } from './world/BengaluruDistricts.js';
+import { BattleRoyaleLootSystem } from './combat/BattleRoyaleLootSystem.js';
+import { KnockReviveSystem } from './combat/KnockReviveSystem.js';
+import { BattleRoyaleZoneManager } from './world/BattleRoyaleZoneManager.js';
+import { SupplyDropManager } from './world/SupplyDropManager.js';
+import { KillFeedUI } from './ui/KillFeedUI.js';
+import { InventoryUI } from './ui/InventoryUI.js';
+import { MatchResultUI } from './ui/MatchResultUI.js';
+import { BattleRoyaleHUD } from './ui/BattleRoyaleHUD.js';
+import { SpectatorManager } from './player/SpectatorManager.js';
+
 class BengaluruGame {
   constructor() {
     this.container = document.getElementById('game-container');
@@ -103,6 +120,69 @@ class BengaluruGame {
       document.getElementById('world-map-canvas')
     );
 
+    // Phase 3 Master Battle Royale Architecture
+    this.brGameState = new BattleRoyaleGameState();
+    this.brGameMode = new BattleRoyaleGameMode(this.brGameState, this.audioManager);
+    this.matchmaking = new MatchmakingManager();
+    this.cargoAircraft = new CargoAircraft(this.scene, this.audioManager);
+    this.flightController = new FreefallParachuteController(this.scene, this.audioManager);
+    this.brLootSystem = new BattleRoyaleLootSystem(this.scene);
+    this.knockReviveSystem = new KnockReviveSystem(this.audioManager);
+    this.brZoneManager = new BattleRoyaleZoneManager(this.scene, this.audioManager);
+    this.supplyDropManager = new SupplyDropManager(this.scene, this.audioManager);
+    this.killFeedUI = new KillFeedUI();
+    this.inventoryUI = new InventoryUI(this.audioManager);
+    this.matchResultUI = new MatchResultUI(this.audioManager);
+    this.brHUD = new BattleRoyaleHUD();
+    this.spectatorManager = new SpectatorManager(this.camera, this.gameState);
+
+    // Setup Killfeed listener
+    this.brGameMode.onKillfeed((entry) => {
+      this.killFeedUI.addEntry(entry.killer, entry.victim, entry.weapon, entry.isElimination);
+    });
+
+    // Setup Victory listener
+    this.brGameMode.onVictory(() => {
+      const p = this.brGameState.getPlayer('P-001');
+      this.matchResultUI.showResults(true, p.kills, p.damageDealt, this.brGameState.matchTimer, 1);
+      this.inputManager.exitPointerLock();
+    });
+
+    // Inventory consumption callback
+    this.inventoryUI.onUseItem = (itemType) => {
+      const p = this.brGameState.getPlayer('P-001');
+      if (itemType === 'firstAid' && p.inventory.meds.firstAid > 0) {
+        p.inventory.meds.firstAid -= 1;
+        p.health = Math.min(100, p.health + 75);
+        this.audioManager.playUIBeep(720);
+        this.hud.triggerKillfeed('Used Trauma First Aid Kit (+75 HP)');
+      } else if (itemType === 'energyDrink' && p.inventory.meds.energyDrink > 0) {
+        p.inventory.meds.energyDrink -= 1;
+        p.boost = Math.min(100, p.boost + 40);
+        this.audioManager.playUIBeep(880);
+        this.hud.triggerKillfeed('Consumed Bengaluru Rush (+40 Boost)');
+      }
+      this.inventoryUI.updateDisplay(p);
+    };
+
+    // Match Result button callbacks
+    const btnLobby = document.getElementById('btn-return-lobby');
+    if (btnLobby) {
+      btnLobby.onclick = () => {
+        this.matchResultUI.hide();
+        this.gameState.setState(GameModeState.MAIN_MENU);
+        this.mainMenu.showMenu();
+        this.hud.hide();
+      };
+    }
+    const btnPlayAgain = document.getElementById('btn-play-again');
+    if (btnPlayAgain) {
+      btnPlayAgain.onclick = () => {
+        this.matchResultUI.hide();
+        this.mainMenu.onStartBattleRoyale();
+      };
+    }
+
     this.clock = new THREE.Clock();
     this.setupUICallbacks();
     this.setupCombatInputs();
@@ -121,12 +201,18 @@ class BengaluruGame {
       this.inputManager.requestPointerLock();
     };
 
-    // Start Battle Royale Sky Drop
+    // Start Battle Royale Matchmaking & Cargo Aircraft Flight Insertion
     this.mainMenu.onStartBattleRoyale = () => {
-      this.gameState.setState(GameModeState.PLAYING);
-      this.hud.show();
-      this.brManager.startBattleRoyale(this.player);
-      this.inputManager.requestPointerLock();
+      this.hud.triggerKillfeed('Matchmaking: Searching for 100 Contenders (Squad Session)...');
+      this.matchmaking.startMatchmaking((mode) => {
+        this.gameState.setState(GameModeState.PLAYING);
+        this.hud.show();
+        this.brGameState.matchStateMachine.setState(EBattleRoyaleMatchState.AircraftDeparture);
+        this.cargoAircraft.startFlight();
+        this.brZoneManager.startZoneProgression();
+        this.inputManager.requestPointerLock();
+        this.hud.triggerKillfeed('Garuda C-130 Inbound over Bengaluru Airspace — Prepare to Jump [F]');
+      });
     };
 
     // Open Garage
@@ -194,6 +280,14 @@ class BengaluruGame {
       }
     };
 
+    // Toggle Inventory with Tab
+    this.inputManager.onToggleInventoryCallback = () => {
+      if (this.gameState.isPlaying()) {
+        const p = this.brGameState.getPlayer('P-001');
+        this.inventoryUI.toggle(p);
+      }
+    };
+
     // HUD quick controls
     this.hud.onToggleTime = () => {
       const mode = this.dayNightCycle.cycleNext();
@@ -216,9 +310,21 @@ class BengaluruGame {
       this.inputManager.exitPointerLock();
     };
 
-    // Disembark / Exit bus or vehicle with [F]
+    // Disembark / Exit bus or vehicle / Eject aircraft with [F]
     this.inputManager.onExitCallback = () => {
       if (!this.gameState.isPlaying()) return;
+
+      // Check Cargo Aircraft Jump
+      if (this.brGameState.matchStateMachine.isState(EBattleRoyaleMatchState.AircraftDeparture)) {
+        if (this.cargoAircraft.canJump && !this.cargoAircraft.hasLocalPlayerJumped) {
+          this.cargoAircraft.ejectPlayer(this.player);
+          this.flightController.startDrop(this.player.position);
+          this.brGameState.matchStateMachine.setState(EBattleRoyaleMatchState.DropPhase);
+          this.hud.triggerKillfeed('Freefalling! [Space] Deploy Parachute');
+          return;
+        }
+      }
+
       if (this.gameState.isInVehicle) {
         this.exitVehicle();
       } else {
@@ -279,7 +385,45 @@ class BengaluruGame {
           return;
         }
 
-        // 4. Check Ground Loot Crate
+        // 4. Check Supply Drop Crate
+        const supplyDrop = this.supplyDropManager.getClosestDrop(this.player.position);
+        if (supplyDrop) {
+          supplyDrop.isOpened = true;
+          supplyDrop.mesh.visible = false;
+          const p = this.brGameState.getPlayer('P-001');
+          p.armorLevel = 3;
+          p.armorDurability = 250;
+          p.helmetLevel = 3;
+          p.helmetDurability = 230;
+          this.weaponSystem.switchWeapon(supplyDrop.loot.weaponKey);
+          this.audioManager.playUIBeep(880);
+          this.hud.triggerKillfeed(`Equipped Legendary Supply Cache (${supplyDrop.loot.weapon})!`);
+          return;
+        }
+
+        // 5. Check District Ground Loot
+        const brLoot = this.brLootSystem.getClosestLoot(this.player.position);
+        if (brLoot) {
+          brLoot.isLooted = true;
+          brLoot.mesh.visible = false;
+          const p = this.brGameState.getPlayer('P-001');
+          if (brLoot.item.category === 'weapon') {
+            this.weaponSystem.switchWeapon(brLoot.item.weaponKey);
+          } else if (brLoot.item.category === 'armor') {
+            p.armorLevel = brLoot.item.level;
+            p.armorDurability = brLoot.item.durability;
+          } else if (brLoot.item.category === 'helmet') {
+            p.helmetLevel = brLoot.item.level;
+            p.helmetDurability = brLoot.item.durability;
+          } else if (brLoot.item.category === 'med') {
+            p.health = Math.min(100, p.health + brLoot.item.healAmount);
+          }
+          this.audioManager.playUIBeep(720);
+          this.hud.triggerKillfeed(`Looted ${brLoot.item.name}!`);
+          return;
+        }
+
+        // 6. Check Ground Loot Crate
         const crate = this.lootSpawner.getClosestCrate(this.player.position, 3.5);
         if (crate) {
           crate.isOpened = true;
@@ -321,20 +465,28 @@ class BengaluruGame {
       this.hud.setCrosshairAiming(false);
     };
 
-    // R Key: Reload
+    // Tactical Reload with [R]
     this.inputManager.onReloadCallback = () => {
       if (this.weaponSystem) {
-        this.weaponSystem.reload();
+        this.weaponSystem.startReload();
       }
     };
 
-    // Weapon Switching (1-5 keys)
+    // Toggle Fire Mode with [B]
+    this.inputManager.onToggleFireModeCallback = () => {
+      if (this.weaponSystem && this.weaponSystem.toggleFireMode) {
+        const mode = this.weaponSystem.toggleFireMode();
+        this.hud.triggerKillfeed(`Fire Mode: ${mode}`);
+      }
+    };
+
+    // Number keys for weapon slots
     this.inputManager.onSwitchWeaponCallback = (wepKey) => {
       if (this.weaponSystem) {
         this.weaponSystem.switchWeapon(wepKey);
         this.hud.updateWeaponCard(
           this.weaponSystem.activeConfig.name,
-          'AUTO',
+          this.weaponSystem.fireMode || 'AUTO',
           this.weaponSystem.activeConfig.caliber,
           this.weaponSystem.clipAmmo,
           this.weaponSystem.reserveAmmo,
@@ -355,7 +507,7 @@ class BengaluruGame {
         this.weaponSystem.switchWeapon(wepKey);
         this.hud.updateWeaponCard(
           this.weaponSystem.activeConfig.name,
-          'AUTO',
+          this.weaponSystem.fireMode || 'AUTO',
           this.weaponSystem.activeConfig.caliber,
           this.weaponSystem.clipAmmo,
           this.weaponSystem.reserveAmmo,
@@ -404,6 +556,13 @@ class BengaluruGame {
     if (this.gameState.isPlaying()) {
       const isAiming = this.inputManager.keys.aim;
       const isADS = isAiming && !this.player.isSprinting;
+      const p1State = this.brGameState.getPlayer('P-001');
+      const matchState = this.brGameState.matchStateMachine.currentState;
+
+      // Space key parachute deployment during freefall
+      if (this.inputManager.keys.jump && this.flightController.state === EAirFlightState.Freefall) {
+        this.flightController.deployParachute();
+      }
 
       // Update Player or Vehicle
       if (this.gameState.isInVehicle) {
@@ -415,54 +574,97 @@ class BengaluruGame {
         const cameraPitch = this.thirdPersonCamera.getPitch();
         const currentDeck = this.bmtcBusSystem.getPlayerCurrentDeck(this.player);
 
-        this.player.update(delta, this.inputManager.keys, cameraYaw, cameraPitch, isAiming);
-        this.thirdPersonCamera.update(
-          delta,
-          this.player.position,
-          mouseDelta,
-          this.player.isSprinting,
-          this.player.isCrouched,
-          isAiming,
-          isADS,
-          [],
-          currentDeck
-        );
-
-        // Check interaction prompts
-        const ddBus = this.bmtcBusSystem.doubleDeckerBus;
-        const isAboardDD = ddBus && this.bmtcBusSystem.isPlayerAboard(this.player, ddBus);
-        const distDDBus = ddBus ? this.bmtcBusSystem.getInteractionDistance(this.player.position, ddBus) : 999;
-        const distSupercar = this.supercar.getInteractionDistance(this.player.position);
-        const distAuto = this.drivableAuto.getInteractionDistance(this.player.position);
-        const lootCrate = this.lootSpawner.getClosestCrate(this.player.position);
-
-        if (isAboardDD) {
-          if (currentDeck === 'UPPER_DECK') {
-            this.hud.showInteractionPrompt('Upper Deck Front Vista — [E] Descend to Lower Deck | [F] Alight');
-          } else {
-            this.hud.showInteractionPrompt('Lower Deck — [E] Climb to Upper Deck | [F] Alight to Curb');
+        // Aircraft Flight Phase
+        if (matchState === EBattleRoyaleMatchState.AircraftDeparture) {
+          this.cargoAircraft.update(delta, this.player, p1State);
+          this.thirdPersonCamera.update(delta, this.player.position, mouseDelta, false, false, false, false);
+          if (this.cargoAircraft.canJump && !this.cargoAircraft.hasLocalPlayerJumped) {
+            this.hud.showInteractionPrompt('Eject / Jump from Aircraft [F]');
           }
-        } else if (distDDBus < 5.8) {
-          this.hud.showInteractionPrompt('Board BMTC Double-Decker Bus (201G: Majestic ⇄ Electronic City) [E]');
-        } else if (distSupercar < 4.8) {
-          this.hud.showInteractionPrompt('Drive Vajra Venom GT [E]');
-        } else if (distAuto < 4.2) {
-          this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
-        } else if (lootCrate) {
-          this.hud.showInteractionPrompt(`Equip ${lootCrate.name} [E]`);
-        } else if (Math.abs(this.player.position.x) < 35 && Math.abs(this.player.position.z - (-20)) < 15) {
-          this.hud.showInteractionPrompt('Board Namma Metro Train Platform');
-        } else {
-          this.hud.hideInteractionPrompt();
+        }
+        // Freefall & Parachute Descent
+        else if (matchState === EBattleRoyaleMatchState.DropPhase || this.flightController.isDropping()) {
+          this.flightController.update(
+            delta,
+            this.player,
+            this.inputManager.keys,
+            cameraYaw,
+            cameraPitch,
+            () => {
+              this.brGameState.matchStateMachine.setState(EBattleRoyaleMatchState.ActiveMatch);
+              this.hud.triggerKillfeed('Touchdown! Scavenge weapons and rotate to the Safe Zone');
+            }
+          );
+          this.thirdPersonCamera.update(delta, this.player.position, mouseDelta, false, false, false, false);
+        }
+        // Standard On-Foot Battle Royale Gameplay
+        else {
+          this.player.update(delta, this.inputManager.keys, cameraYaw, cameraPitch, isAiming);
+          this.thirdPersonCamera.update(
+            delta,
+            this.player.position,
+            mouseDelta,
+            this.player.isSprinting,
+            this.player.isCrouched,
+            isAiming,
+            isADS,
+            [],
+            currentDeck
+          );
+
+          // Interaction prompts check
+          const ddBus = this.bmtcBusSystem.doubleDeckerBus;
+          const isAboardDD = ddBus && this.bmtcBusSystem.isPlayerAboard(this.player, ddBus);
+          const distDDBus = ddBus ? this.bmtcBusSystem.getInteractionDistance(this.player.position, ddBus) : 999;
+          const distSupercar = this.supercar.getInteractionDistance(this.player.position);
+          const distAuto = this.drivableAuto.getInteractionDistance(this.player.position);
+          const lootCrate = this.lootSpawner.getClosestCrate(this.player.position);
+          const supplyDrop = this.supplyDropManager.getClosestDrop(this.player.position);
+          const brLoot = this.brLootSystem.getClosestLoot(this.player.position);
+
+          if (supplyDrop) {
+            this.hud.showInteractionPrompt(`Open Legendary Supply Drop (${supplyDrop.loot.weapon}) [E]`);
+          } else if (brLoot) {
+            this.hud.showInteractionPrompt(`Equip ${brLoot.item.name} [E]`);
+          } else if (isAboardDD) {
+            if (currentDeck === 'UPPER_DECK') {
+              this.hud.showInteractionPrompt('Upper Deck Front Vista — [E] Descend to Lower Deck | [F] Alight');
+            } else {
+              this.hud.showInteractionPrompt('Lower Deck — [E] Climb to Upper Deck | [F] Alight to Curb');
+            }
+          } else if (distDDBus < 5.8) {
+            this.hud.showInteractionPrompt('Board BMTC Double-Decker Bus (201G: Majestic ⇄ Electronic City) [E]');
+          } else if (distSupercar < 4.8) {
+            this.hud.showInteractionPrompt('Drive Vajra Venom GT [E]');
+          } else if (distAuto < 4.2) {
+            this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
+          } else if (lootCrate) {
+            this.hud.showInteractionPrompt(`Equip ${lootCrate.name} [E]`);
+          } else if (Math.abs(this.player.position.x) < 35 && Math.abs(this.player.position.z - (-20)) < 15) {
+            this.hud.showInteractionPrompt('Board Namma Metro Train Platform');
+          } else {
+            this.hud.hideInteractionPrompt();
+          }
         }
       }
+
+      // Update Phase 3 Master Battle Royale Systems
+      this.brGameMode.update(delta, this.player.position);
+      const zoneData = this.brZoneManager.update(delta, this.player, p1State);
+      this.supplyDropManager.update(delta);
+      this.brLootSystem.update(delta);
+      this.knockReviveSystem.update(delta, this.player, p1State);
+      this.spectatorManager.update(delta);
+
+      // Update Phase 3 HUD
+      this.brHUD.update(this.brGameState.aliveCount, p1State.kills, zoneData, p1State, this.flightController);
 
       // Update Phase 2.5 BMTC Transportation Network
       this.bmtcBusSystem.update(delta, this.player, this.busRouteManager);
       this.busStopSystem.update(delta);
       this.passengerNPCSystem.update(delta);
 
-      // Update Phase 2 Systems
+      // Update Combat Systems
       this.weaponSystem.setAiming(isAiming, isADS);
       this.weaponSystem.update(delta, this.camera, this.gameState.isInVehicle, this.thirdPersonCamera);
       this.lootSpawner.update(delta);
@@ -483,7 +685,7 @@ class BengaluruGame {
       this.hud.update(activePos, compassBearing, nitroVal);
       this.hud.updateWeaponCard(
         this.weaponSystem.activeConfig.name,
-        'AUTO',
+        this.weaponSystem.fireMode || 'AUTO',
         this.weaponSystem.activeConfig.caliber,
         this.weaponSystem.clipAmmo,
         this.weaponSystem.reserveAmmo,

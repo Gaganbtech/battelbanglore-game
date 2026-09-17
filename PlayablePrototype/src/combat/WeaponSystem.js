@@ -120,6 +120,7 @@ export class WeaponSystem {
     this.clipAmmo = this.activeConfig.maxClip;
     this.reserveAmmo = 120;
     this.fireTimer = 0;
+    this.fireMode = 'AUTO'; // 'AUTO', 'BURST', 'SINGLE'
 
     // Recoil spring states
     this.weaponRecoilZ = 0; // backward push
@@ -141,6 +142,18 @@ export class WeaponSystem {
     this.scene.add(this.muzzleLight);
 
     this.switchWeapon('ar9');
+  }
+
+  toggleFireMode() {
+    if (this.fireMode === 'AUTO') {
+      this.fireMode = 'BURST';
+    } else if (this.fireMode === 'BURST') {
+      this.fireMode = 'SINGLE';
+    } else {
+      this.fireMode = 'AUTO';
+    }
+    if (this.audioManager) this.audioManager.playUIBeep(580);
+    return this.fireMode;
   }
 
   buildAllWeaponModels() {

@@ -37,6 +37,7 @@ export class InputManager {
     this.onToggleFireModeCallback = null;
     this.onToggleDevDrawerCallback = null;
     this.onExitCallback = null;
+    this.onToggleInventoryCallback = null;
 
     this.initListeners();
   }
@@ -122,6 +123,11 @@ export class InputManager {
 
     if (code === 'KeyM') {
       if (this.onToggleMapCallback) this.onToggleMapCallback();
+    }
+
+    if (code === 'Tab') {
+      e.preventDefault();
+      if (this.onToggleInventoryCallback) this.onToggleInventoryCallback();
     }
 
     if (code === 'KeyB') {
