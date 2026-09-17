@@ -51,6 +51,19 @@ import { MatchResultUI } from './ui/MatchResultUI.js';
 import { BattleRoyaleHUD } from './ui/BattleRoyaleHUD.js';
 import { SpectatorManager } from './player/SpectatorManager.js';
 
+// Phase 4 Advanced Living Bengaluru Systems
+import { AdvancedMetroSystem } from './transport/AdvancedMetroSystem.js';
+import { ElectricBusSystem } from './transport/ElectricBusSystem.js';
+import { BusDepotSystem } from './transport/BusDepotSystem.js';
+import { AdvancedCivilianAI } from './ai/AdvancedCivilianAI.js';
+import { PoliceEmergencySystem } from './ai/PoliceEmergencySystem.js';
+import { EnterableBuildings } from './world/EnterableBuildings.js';
+import { DynamicCityEvents } from './world/DynamicCityEvents.js';
+import { CityLifeManager } from './world/CityLifeManager.js';
+import { MissionManager } from './missions/MissionManager.js';
+import { MissionHUD } from './ui/MissionHUD.js';
+import { EconomyProgression } from './core/EconomyProgression.js';
+
 class BengaluruGame {
   constructor() {
     this.container = document.getElementById('game-container');
@@ -135,6 +148,27 @@ class BengaluruGame {
     this.matchResultUI = new MatchResultUI(this.audioManager);
     this.brHUD = new BattleRoyaleHUD();
     this.spectatorManager = new SpectatorManager(this.camera, this.gameState);
+
+    // Phase 4 Advanced Living Open-World Systems
+    this.economy = new EconomyProgression();
+    this.advancedMetro = new AdvancedMetroSystem(this.scene, this.audioManager);
+    this.electricBus = new ElectricBusSystem(this.scene, this.audioManager);
+    this.busDepot = new BusDepotSystem(this.scene);
+    this.advancedCivilianAI = new AdvancedCivilianAI(this.scene, this.audioManager);
+    this.policeSystem = new PoliceEmergencySystem(this.scene, this.audioManager);
+    this.enterableBuildings = new EnterableBuildings(this.scene, this.audioManager);
+    this.dynamicEvents = new DynamicCityEvents(this.scene, this.audioManager);
+    this.cityLifeManager = new CityLifeManager(
+      this.dayNightCycle,
+      this.weatherSystem,
+      this.trafficSystem,
+      this.advancedCivilianAI,
+      this.advancedMetro,
+      this.bmtcBusSystem,
+      this.dynamicEvents
+    );
+    this.missionManager = new MissionManager(this.scene, this.audioManager, this.economy);
+    this.missionHUD = new MissionHUD();
 
     // Setup Killfeed listener
     this.brGameMode.onKillfeed((entry) => {
@@ -434,6 +468,35 @@ class BengaluruGame {
           this.hud.triggerKillfeed(`Equipped ${crate.name}!`);
           return;
         }
+
+        // 7. Check Phase 4 Interactive Doors
+        const doorResult = this.enterableBuildings.toggleClosestDoor(this.player.position);
+        if (doorResult.success) {
+          this.hud.triggerKillfeed(`${doorResult.isOpen ? 'Opened' : 'Closed'} ${doorResult.name}`);
+          return;
+        }
+
+        // 8. Check Phase 4 Interior Loot
+        const intLoot = this.enterableBuildings.getClosestInteriorLoot(this.player.position);
+        if (intLoot) {
+          intLoot.isLooted = true;
+          intLoot.mesh.visible = false;
+          this.weaponSystem.reserveAmmo += 60;
+          this.audioManager.playUIBeep(880);
+          this.hud.triggerKillfeed(`Secured ${intLoot.name}!`);
+          return;
+        }
+
+        // 9. Quick Mission Start Check (If near any open-world mission start point)
+        if (!this.missionManager.activeMission) {
+          for (const m of this.missionManager.missions) {
+            if (m.status === 'AVAILABLE') {
+              this.missionManager.startMission(m.id);
+              this.hud.triggerKillfeed(`Started Mission: ${m.title}`);
+              return;
+            }
+          }
+        }
       }
     };
   }
@@ -443,6 +506,9 @@ class BengaluruGame {
     this.inputManager.onFireStartCallback = () => {
       if (!this.gameState.isInVehicle && this.weaponSystem) {
         this.weaponSystem.startFire();
+        if (this.advancedCivilianAI) {
+          this.advancedCivilianAI.triggerGunfirePanic(this.player.position);
+        }
       }
     };
 
@@ -640,8 +706,15 @@ class BengaluruGame {
             this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
           } else if (lootCrate) {
             this.hud.showInteractionPrompt(`Equip ${lootCrate.name} [E]`);
+          } else if (this.enterableBuildings.getClosestInteriorLoot(this.player.position, 3.2)) {
+            const intLoot = this.enterableBuildings.getClosestInteriorLoot(this.player.position, 3.2);
+            this.hud.showInteractionPrompt(`Scavenge ${intLoot.name} [E]`);
+          } else if (this.enterableBuildings.interactiveDoors.some(d => d.worldPos.distanceTo(this.player.position) < 3.2)) {
+            this.hud.showInteractionPrompt('Open / Close Building Door [E]');
+          } else if (this.electricBus.getInteractionDistance(this.player.position) < 6.0) {
+            this.hud.showInteractionPrompt(`BMTC Vajra EV (Battery: ${Math.round(this.electricBus.batterySOC)}%) [E]`);
           } else if (Math.abs(this.player.position.x) < 35 && Math.abs(this.player.position.z - (-20)) < 15) {
-            this.hud.showInteractionPrompt('Board Namma Metro Train Platform');
+            this.hud.showInteractionPrompt('Namma Metro Concourse — Ascend to Platform [E]');
           } else {
             this.hud.hideInteractionPrompt();
           }
@@ -655,6 +728,13 @@ class BengaluruGame {
       this.brLootSystem.update(delta);
       this.knockReviveSystem.update(delta, this.player, p1State);
       this.spectatorManager.update(delta);
+
+      // Update Phase 4 Advanced Living Systems
+      this.cityLifeManager.update(delta, this.player.position, this.hud);
+      this.electricBus.update(delta, this.player, this.inputManager.keys);
+      this.policeSystem.update(delta, matchState === EBattleRoyaleMatchState.ActiveMatch ? 'BATTLE_ROYALE' : 'OPEN_WORLD', this.player.position);
+      this.missionManager.update(delta, this.player.position, this.gameState.isInVehicle ? 55 : 15, this.hud);
+      this.missionHUD.update(this.missionManager.activeMission, this.player.position, this.missionManager.missionTimer);
 
       // Update Phase 3 HUD
       this.brHUD.update(this.brGameState.aliveCount, p1State.kills, zoneData, p1State, this.flightController);

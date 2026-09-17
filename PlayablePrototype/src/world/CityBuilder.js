@@ -461,4 +461,13 @@ export class CityBuilder {
 
     return group;
   }
+
+  setNightMode(isNight) {
+    const intensity = isNight ? 0.75 : 0.12;
+    this.windowMaterials.forEach(mat => {
+      if (mat && mat.emissiveIntensity !== undefined) {
+        mat.emissiveIntensity = intensity;
+      }
+    });
+  }
 }

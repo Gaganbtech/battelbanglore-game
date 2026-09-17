@@ -175,12 +175,59 @@ export class MinimapRenderer {
     ctx.lineTo(w, toCanvasY(-20));
     ctx.stroke();
 
-    // Central Metro Station icon
-    ctx.fillStyle = '#e1bee7';
-    ctx.fillRect(toCanvasX(0) - 8, toCanvasY(-20) - 6, 16, 12);
-    ctx.strokeStyle = '#4a148c';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(toCanvasX(0) - 8, toCanvasY(-20) - 6, 16, 12);
+    // 3 Metro Stations (West Gate, MG Road Central, Silicon Valley Park)
+    const stations = [
+      { name: 'WEST GATE', x: -220, z: -20 },
+      { name: 'MG ROAD CENTRAL', x: 0, z: -20 },
+      { name: 'SILICON VALLEY PARK', x: 220, z: -20 }
+    ];
+
+    stations.forEach(st => {
+      const sx = toCanvasX(st.x);
+      const sy = toCanvasY(st.z);
+      ctx.fillStyle = '#a855f7';
+      ctx.fillRect(sx - 7, sy - 5, 14, 10);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx - 7, sy - 5, 14, 10);
+
+      ctx.fillStyle = '#f3e8ff';
+      ctx.font = 'bold 9px Rajdhani, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(st.name, sx, sy - 8);
+    });
+
+    // Majestic Central Bus Depot Marker
+    const depotX = toCanvasX(-60);
+    const depotY = toCanvasY(95);
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(depotX - 10, depotY - 8, 20, 16);
+    ctx.strokeStyle = '#86efac';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(depotX - 10, depotY - 8, 20, 16);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 10px Rajdhani, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('MAJESTIC BUS DEPOT', depotX, depotY + 20);
+
+    // Enterable Buildings Icons
+    const enterable = [
+      { name: 'PEENYA WAREHOUSE', x: -100, z: -120, col: '#f59e0b' },
+      { name: 'SILICON TECH OFFICE', x: 110, z: -50, col: '#38bdf8' },
+      { name: 'RESIDENCY APARTMENT', x: 45, z: 55, col: '#ec4899' }
+    ];
+    enterable.forEach(b => {
+      const bx = toCanvasX(b.x);
+      const by = toCanvasY(b.z);
+      ctx.fillStyle = b.col;
+      ctx.beginPath();
+      ctx.arc(bx, by, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '9px Rajdhani, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.name, bx, by + 12);
+    });
 
     // Lake Feature (Zone G)
     ctx.fillStyle = '#0f4d5cbb';
@@ -190,7 +237,7 @@ export class MinimapRenderer {
     ctx.strokeStyle = '#26c6da';
     ctx.stroke();
 
-    // Future Battle Royale Safe Zone Circle (Golden Ring)
+    // Battle Royale Safe Zone Circle (Golden Ring)
     ctx.strokeStyle = '#ffd54f';
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 6]);
@@ -201,7 +248,7 @@ export class MinimapRenderer {
 
     ctx.fillStyle = '#ffd54f';
     ctx.font = '10px Rajdhani, sans-serif';
-    ctx.fillText('FUTURE BR SAFE ZONE RING 1', toCanvasX(0), toCanvasY(0) - 175);
+    ctx.fillText('BR PLAY ZONE BOUNDARY', toCanvasX(0), toCanvasY(0) - 175);
 
     // Player Location Marker
     const px = toCanvasX(playerPos.x);
