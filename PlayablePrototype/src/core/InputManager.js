@@ -36,6 +36,7 @@ export class InputManager {
     this.onSwitchWeaponCallback = null;
     this.onToggleFireModeCallback = null;
     this.onToggleDevDrawerCallback = null;
+    this.onExitCallback = null;
 
     this.initListeners();
   }
@@ -113,6 +114,10 @@ export class InputManager {
 
     if (code === 'KeyE') {
       if (this.onInteractCallback) this.onInteractCallback();
+    }
+
+    if (code === 'KeyF') {
+      if (this.onExitCallback) this.onExitCallback();
     }
 
     if (code === 'KeyM') {

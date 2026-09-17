@@ -28,6 +28,12 @@ import { HUD } from './ui/HUD.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { GarageMenu } from './ui/GarageMenu.js';
 
+// Phase 2.5 BMTC Transportation Network
+import { BMTCBusSystem } from './transport/BMTCBusSystem.js';
+import { BusRouteManager } from './transport/BusRouteManager.js';
+import { BusStopSystem } from './transport/BusStopSystem.js';
+import { PassengerNPCSystem } from './transport/PassengerNPCSystem.js';
+
 class BengaluruGame {
   constructor() {
     this.container = document.getElementById('game-container');
@@ -61,6 +67,12 @@ class BengaluruGame {
     this.civilianNPCSystem = new CivilianNPCSystem(this.scene);
     this.drivableAuto = new DrivableVehicle(this.scene, 'auto', new THREE.Vector3(8, 0, 14));
     this.supercar = new Supercar(this.scene, new THREE.Vector3(-12, 0, 16));
+
+    // Phase 2.5 BMTC Public Transportation Network
+    this.busStopSystem = new BusStopSystem(this.scene);
+    this.busRouteManager = new BusRouteManager(this.busStopSystem);
+    this.bmtcBusSystem = new BMTCBusSystem(this.scene, this.audioManager);
+    this.passengerNPCSystem = new PassengerNPCSystem(this.scene, this.bmtcBusSystem, this.busStopSystem);
 
     // Atmosphere
     this.dayNightCycle = new DayNightCycle(
@@ -204,6 +216,21 @@ class BengaluruGame {
       this.inputManager.exitPointerLock();
     };
 
+    // Disembark / Exit bus or vehicle with [F]
+    this.inputManager.onExitCallback = () => {
+      if (!this.gameState.isPlaying()) return;
+      if (this.gameState.isInVehicle) {
+        this.exitVehicle();
+      } else {
+        const ddBus = this.bmtcBusSystem.doubleDeckerBus;
+        if (ddBus && this.bmtcBusSystem.isPlayerAboard(this.player, ddBus)) {
+          this.bmtcBusSystem.exitPlayerToCurb(this.player);
+          this.audioManager.playAirBrakeHiss();
+          this.hud.triggerKillfeed('Alighted at Bus Stop');
+        }
+      }
+    };
+
     // Interaction with [E]
     this.inputManager.onInteractCallback = () => {
       if (!this.gameState.isPlaying()) return;
@@ -211,21 +238,48 @@ class BengaluruGame {
       if (this.gameState.isInVehicle) {
         this.exitVehicle();
       } else {
-        // 1. Check Supercar
+        // 1. Check BMTC Double-Decker Bus (Boarding / Deck Transition)
+        const ddBus = this.bmtcBusSystem.doubleDeckerBus;
+        if (ddBus) {
+          const isAboard = this.bmtcBusSystem.isPlayerAboard(this.player, ddBus);
+          const currentDeck = this.bmtcBusSystem.getPlayerCurrentDeck(this.player);
+          const distToBus = this.bmtcBusSystem.getInteractionDistance(this.player.position, ddBus);
+
+          if (isAboard) {
+            if (currentDeck === 'LOWER_DECK') {
+              this.bmtcBusSystem.boardPlayer(this.player, 'UPPER_DECK');
+              this.audioManager.playUIBeep(720);
+              this.hud.triggerKillfeed('Climbed to Upper Deck Panoramic Lounge');
+              return;
+            } else {
+              this.bmtcBusSystem.boardPlayer(this.player, 'LOWER_DECK');
+              this.audioManager.playUIBeep(520);
+              this.hud.triggerKillfeed('Descended to Lower Deck');
+              return;
+            }
+          } else if (distToBus < 5.8) {
+            this.bmtcBusSystem.boardPlayer(this.player, 'LOWER_DECK');
+            this.audioManager.playBusDoorChime();
+            this.hud.triggerKillfeed('Boarded BMTC SkyCruiser (Route 201G)');
+            return;
+          }
+        }
+
+        // 2. Check Supercar
         const distToSupercar = this.supercar.getInteractionDistance(this.player.position);
         if (distToSupercar < 4.5) {
           this.enterVehicle(this.supercar);
           return;
         }
 
-        // 2. Check Auto-Rickshaw
+        // 3. Check Auto-Rickshaw
         const distToAuto = this.drivableAuto.getInteractionDistance(this.player.position);
         if (distToAuto < 4.2) {
           this.enterVehicle(this.drivableAuto);
           return;
         }
 
-        // 3. Check Ground Loot Crate
+        // 4. Check Ground Loot Crate
         const crate = this.lootSpawner.getClosestCrate(this.player.position, 3.5);
         if (crate) {
           crate.isOpened = true;
@@ -359,6 +413,7 @@ class BengaluruGame {
       } else {
         const cameraYaw = this.thirdPersonCamera.getYaw();
         const cameraPitch = this.thirdPersonCamera.getPitch();
+        const currentDeck = this.bmtcBusSystem.getPlayerCurrentDeck(this.player);
 
         this.player.update(delta, this.inputManager.keys, cameraYaw, cameraPitch, isAiming);
         this.thirdPersonCamera.update(
@@ -368,15 +423,28 @@ class BengaluruGame {
           this.player.isSprinting,
           this.player.isCrouched,
           isAiming,
-          isADS
+          isADS,
+          [],
+          currentDeck
         );
 
         // Check interaction prompts
+        const ddBus = this.bmtcBusSystem.doubleDeckerBus;
+        const isAboardDD = ddBus && this.bmtcBusSystem.isPlayerAboard(this.player, ddBus);
+        const distDDBus = ddBus ? this.bmtcBusSystem.getInteractionDistance(this.player.position, ddBus) : 999;
         const distSupercar = this.supercar.getInteractionDistance(this.player.position);
         const distAuto = this.drivableAuto.getInteractionDistance(this.player.position);
         const lootCrate = this.lootSpawner.getClosestCrate(this.player.position);
 
-        if (distSupercar < 4.8) {
+        if (isAboardDD) {
+          if (currentDeck === 'UPPER_DECK') {
+            this.hud.showInteractionPrompt('Upper Deck Front Vista — [E] Descend to Lower Deck | [F] Alight');
+          } else {
+            this.hud.showInteractionPrompt('Lower Deck — [E] Climb to Upper Deck | [F] Alight to Curb');
+          }
+        } else if (distDDBus < 5.8) {
+          this.hud.showInteractionPrompt('Board BMTC Double-Decker Bus (201G: Majestic ⇄ Electronic City) [E]');
+        } else if (distSupercar < 4.8) {
           this.hud.showInteractionPrompt('Drive Vajra Venom GT [E]');
         } else if (distAuto < 4.2) {
           this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
@@ -388,6 +456,11 @@ class BengaluruGame {
           this.hud.hideInteractionPrompt();
         }
       }
+
+      // Update Phase 2.5 BMTC Transportation Network
+      this.bmtcBusSystem.update(delta, this.player, this.busRouteManager);
+      this.busStopSystem.update(delta);
+      this.passengerNPCSystem.update(delta);
 
       // Update Phase 2 Systems
       this.weaponSystem.setAiming(isAiming, isADS);

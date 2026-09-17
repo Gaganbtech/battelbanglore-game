@@ -155,6 +155,57 @@ export class AudioManager {
     osc.stop(this.ctx.currentTime + 0.1);
   }
 
+  playAirBrakeHiss() {
+    if (!this.ctx || !this.isInitialized) return;
+    try {
+      const bufferSize = this.ctx.sampleRate * 0.45;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.12));
+      }
+
+      const whiteNoise = this.ctx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2400, this.ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(320, this.ctx.currentTime + 0.4);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+
+      whiteNoise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+      whiteNoise.start();
+    } catch (e) {}
+  }
+
+  playBusDoorChime() {
+    if (!this.ctx || !this.isInitialized) return;
+    try {
+      // 2-tone chime: High E (659Hz) then High C (523Hz)
+      [
+        { freq: 659, time: 0 },
+        { freq: 523, time: 0.14 }
+      ].forEach(note => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note.freq, this.ctx.currentTime + note.time);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime + note.time);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + note.time + 0.22);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(this.ctx.currentTime + note.time);
+        osc.stop(this.ctx.currentTime + note.time + 0.25);
+      });
+    } catch (e) {}
+  }
+
   setMasterVolume(val) {
     if (!this.masterGain || !this.ctx) return;
     this.masterGain.gain.setValueAtTime(val, this.ctx.currentTime);

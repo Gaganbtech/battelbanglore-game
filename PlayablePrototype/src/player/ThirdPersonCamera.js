@@ -41,7 +41,7 @@ export class ThirdPersonCamera {
     this.landingImpulse = 0;
   }
 
-  update(delta, targetPosition, mouseDelta, isSprinting = false, isCrouched = false, isAiming = false, isADS = false, sceneColliders = []) {
+  update(delta, targetPosition, mouseDelta, isSprinting = false, isCrouched = false, isAiming = false, isADS = false, sceneColliders = [], busDeck = null) {
     // 1. Mouse Look with Recoil Dampening
     const sensitivity = isADS ? CAMERA_CONFIG.ROTATION_SPEED * 0.55 : CAMERA_CONFIG.ROTATION_SPEED;
     this.yaw -= mouseDelta.x * sensitivity;
@@ -55,8 +55,20 @@ export class ThirdPersonCamera {
 
     this.pitch = THREE.MathUtils.clamp(this.pitch, this.minPitch, this.maxPitch);
 
-    // 2. Camera Mode Tuning (Hip Fire vs Shoulder Aim vs ADS vs Sprint)
-    if (isADS) {
+    // 2. Camera Mode Tuning (Hip Fire vs Shoulder Aim vs ADS vs Sprint vs BMTC Panoramic)
+    if (busDeck === 'UPPER_DECK') {
+      // Upper Deck Panoramic Vista Mode
+      this.targetDistance = 2.1;
+      this.targetFOV = 78.0;
+      this.targetShoulderOffsetX = 0.22;
+      this.targetHeight = 1.35;
+    } else if (busDeck === 'LOWER_DECK') {
+      // Lower Deck Commuter Mode
+      this.targetDistance = 1.85;
+      this.targetFOV = 68.0;
+      this.targetShoulderOffsetX = 0.25;
+      this.targetHeight = 1.25;
+    } else if (isADS) {
       // Precision ADS sight-picture
       this.targetDistance = 0.85;
       this.targetFOV = 48.0;
@@ -122,7 +134,7 @@ export class ThirdPersonCamera {
     const idealPosition = this.smoothedLookTarget.clone().add(new THREE.Vector3(cameraOffsetX, cameraOffsetY, cameraOffsetZ));
 
     // Ground & Obstacle Collision Cushion
-    const minHeightAboveGround = (targetPosition.y > 10.0) ? 14.5 : 0.5;
+    const minHeightAboveGround = (targetPosition.y > 10.0) ? 14.5 : (targetPosition.y > 2.0 ? targetPosition.y - 0.2 : 0.5);
     if (idealPosition.y < minHeightAboveGround) {
       idealPosition.y = minHeightAboveGround;
     }
