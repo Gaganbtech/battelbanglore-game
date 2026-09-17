@@ -532,139 +532,299 @@ canvas {
   transition: width 0.15s ease-out;
 }
 
+.bar-fill.armor {
+  background: linear-gradient(90deg, #00b0ff 0%, #00e5ff 100%);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
 .bar-fill.health {
   background: linear-gradient(90deg, #ff1744 0%, #00e676 100%);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
 }
 
 .bar-fill.stamina {
   background: linear-gradient(90deg, #ff9100 0%, #ffd600 100%);
 }
 
-.controls-hint {
-  margin-top: 0.4rem;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-  font-family: var(--font-body);
+.status-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
-/* WEAPON HUD PANEL */
+/* TACTICAL EQUIPMENT SLOTS */
+.tactical-slots {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.tac-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+}
+
+.tac-key {
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: var(--accent-gold);
+  color: #000;
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+}
+
+.tac-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+/* TACTICAL WEAPON CARD */
 .weapon-hud-panel {
   background: var(--bg-glass-heavy);
   border: 1px solid var(--border-glass);
-  border-right: 3px solid var(--accent-gold);
-  padding: 0.8rem 1.6rem;
+  border-right: 4px solid var(--accent-gold);
+  padding: 0.9rem 1.6rem;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  backdrop-filter: blur(10px);
-  min-width: 220px;
+  backdrop-filter: blur(12px);
+  min-width: 250px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.weapon-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.1rem;
 }
 
 .weapon-name {
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: var(--accent-gold);
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.firemode-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  background: rgba(0, 229, 255, 0.18);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+  letter-spacing: 0.1em;
 }
 
 .weapon-ammo-display {
   display: flex;
   align-items: baseline;
-  gap: 0.3rem;
+  gap: 0.35rem;
   line-height: 1;
-  margin: 0.2rem 0;
+  margin: 0.25rem 0;
 }
 
 .ammo-clip {
   font-family: var(--font-display);
-  font-size: 3rem;
-  font-weight: 700;
+  font-size: 3.2rem;
+  font-weight: 800;
   color: #fff;
+  letter-spacing: -0.02em;
 }
 
 .ammo-divider {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   color: var(--text-muted);
 }
 
 .ammo-reserve {
   font-family: var(--font-display);
   font-size: 1.8rem;
+  font-weight: 700;
   color: var(--text-gold);
 }
 
-.weapon-type-badge {
-  font-size: 0.65rem;
-  color: var(--accent-cyan);
-  letter-spacing: 0.12em;
-}
-
-/* INTERACTION PROMPT */
-#interaction-prompt {
-  position: absolute;
-  left: 50%;
-  bottom: 22%;
-  transform: translateX(-50%);
-  background: var(--bg-glass-heavy);
-  border: 1px solid var(--accent-gold);
-  padding: 0.7rem 1.8rem;
+.weapon-card-footer {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.8rem;
-  box-shadow: 0 0 30px rgba(255, 193, 7, 0.3);
-  backdrop-filter: blur(12px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-#interaction-prompt.hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(15px);
+.weapon-caliber {
+  font-size: 0.68rem;
+  color: var(--accent-cyan);
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 
-.key-badge {
+.weapon-slot-indicators {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.slot-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: var(--accent-gold);
-  color: #000;
+  width: 18px;
+  height: 18px;
+  font-size: 0.65rem;
   font-weight: 800;
-  font-size: 1rem;
-  border-radius: 4px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
 }
 
-.prompt-label {
-  font-size: 1.05rem;
+.slot-pill.active {
+  color: #000;
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+/* COLLAPSIBLE SIMULATION DEV DRAWER */
+.dev-drawer-toggle-wrapper {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 100;
+}
+
+.dev-toggle-btn {
+  background: rgba(10, 15, 24, 0.7);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.dev-toggle-btn:hover {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  background: rgba(10, 15, 24, 0.9);
+}
+
+.sim-dev-drawer {
+  position: absolute;
+  top: 4rem;
+  left: 1.5rem;
+  width: 320px;
+  background: var(--bg-glass-heavy);
+  border: 1px solid var(--border-glass);
+  border-left: 3px solid var(--accent-cyan);
+  padding: 1rem 1.2rem;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 110;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sim-dev-drawer.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  letter-spacing: 0.12em;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.drawer-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.drawer-close:hover {
   color: #fff;
 }
 
-/* HUD QUICK TOGGLES */
-.hud-quick-toggles {
+.drawer-content {
   display: flex;
+  flex-direction: column;
   gap: 0.6rem;
 }
 
-.quick-btn {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-glass);
-  color: var(--text-main);
-  padding: 0.5rem 1rem;
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+.drawer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.quick-btn:hover {
-  background: rgba(255, 152, 0, 0.2);
-  border-color: var(--accent-amber);
+.drawer-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.drawer-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  color: #fff;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.drawer-btn:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--accent-cyan);
+}
+
+.drawer-weapon-btns {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.d-wep-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.d-wep-btn.active, .d-wep-btn:hover {
+  color: #000;
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
 }
 
 /* MODALS */

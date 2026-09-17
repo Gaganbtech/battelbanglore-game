@@ -1,5 +1,5 @@
-// Input Manager supporting keyboard, mouse look, pointer lock, ADS (RMB), and shooting (LMB)
-
+// Input Manager supporting keyboard, mouse look, pointer lock, ADS (RMB), weapon switching & fire mode
+// BENGALURU: LAST CITY - Phase 2 Overhaul
 export class InputManager {
   constructor(domElement, gameState) {
     this.domElement = domElement;
@@ -13,6 +13,7 @@ export class InputManager {
       jump: false,
       sprint: false,
       crouch: false,
+      aim: false,
       interact: false,
       toggleMap: false,
       pause: false,
@@ -32,6 +33,9 @@ export class InputManager {
     this.onFireStopCallback = null;
     this.onAimStartCallback = null;
     this.onAimStopCallback = null;
+    this.onSwitchWeaponCallback = null;
+    this.onToggleFireModeCallback = null;
+    this.onToggleDevDrawerCallback = null;
 
     this.initListeners();
   }
@@ -76,6 +80,7 @@ export class InputManager {
     } else if (e.button === 2) {
       // Right Click: Aim Down Sights (ADS)
       this.isRMBDown = true;
+      this.keys.aim = true;
       if (this.onAimStartCallback) this.onAimStartCallback();
     }
   }
@@ -86,6 +91,7 @@ export class InputManager {
       if (this.onFireStopCallback) this.onFireStopCallback();
     } else if (e.button === 2) {
       this.isRMBDown = false;
+      this.keys.aim = false;
       if (this.onAimStopCallback) this.onAimStopCallback();
     }
   }
@@ -111,6 +117,27 @@ export class InputManager {
 
     if (code === 'KeyM') {
       if (this.onToggleMapCallback) this.onToggleMapCallback();
+    }
+
+    if (code === 'KeyB') {
+      if (this.onToggleFireModeCallback) this.onToggleFireModeCallback();
+    }
+
+    if (code === 'Backquote') {
+      if (this.onToggleDevDrawerCallback) this.onToggleDevDrawerCallback();
+    }
+
+    // Number keys for weapon slots
+    if (code === 'Digit1') {
+      if (this.onSwitchWeaponCallback) this.onSwitchWeaponCallback('ar9');
+    } else if (code === 'Digit2') {
+      if (this.onSwitchWeaponCallback) this.onSwitchWeaponCallback('kestrel');
+    } else if (code === 'Digit3') {
+      if (this.onSwitchWeaponCallback) this.onSwitchWeaponCallback('raven');
+    } else if (code === 'Digit4') {
+      if (this.onSwitchWeaponCallback) this.onSwitchWeaponCallback('pulse9');
+    } else if (code === 'Digit5') {
+      if (this.onSwitchWeaponCallback) this.onSwitchWeaponCallback('longshot');
     }
 
     if (code === 'Escape') {

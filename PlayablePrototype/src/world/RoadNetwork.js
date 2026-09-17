@@ -27,11 +27,12 @@ export class RoadNetwork {
     this.group.add(ground);
 
     // Main Asphalt Roads (North-South & East-West)
-    const asphaltMat = new THREE.MeshStandardMaterial({
+    this.asphaltMat = new THREE.MeshStandardMaterial({
       color: 0x22262c,
       roughness: 0.65,
       metalness: 0.15
     });
+    const asphaltMat = this.asphaltMat;
 
     // East-West Main Boulevard (z = 0)
     const ewRoadGeo = new THREE.PlaneGeometry(580, 24);
@@ -240,5 +241,12 @@ export class RoadNetwork {
       light.intensity = intensity;
       fixture.material.emissiveIntensity = emissiveIntensity;
     });
+  }
+
+  setWetRoad(isWet) {
+    if (this.asphaltMat) {
+      this.asphaltMat.roughness = isWet ? 0.16 : 0.65;
+      this.asphaltMat.metalness = isWet ? 0.72 : 0.15;
+    }
   }
 }

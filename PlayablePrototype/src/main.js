@@ -70,7 +70,7 @@ class BengaluruGame {
       this.cityBuilder,
       this.trafficSystem
     );
-    this.weatherSystem = new WeatherSystem(this.scene, this.audioManager);
+    this.weatherSystem = new WeatherSystem(this.scene, this.audioManager, this.roadNetwork);
 
     // Player & Third-Person Camera
     this.player = new PlayerCharacter(this.scene, this.gameState, this.audioManager);
@@ -257,16 +257,14 @@ class BengaluruGame {
     // Right Click: Aim Down Sights (ADS)
     this.inputManager.onAimStartCallback = () => {
       if (!this.gameState.isInVehicle) {
-        this.weaponSystem.setAiming(true);
+        this.weaponSystem.setAiming(true, true);
         this.hud.setCrosshairAiming(true);
-        this.thirdPersonCamera.targetFOV = 52.0; // Zoom
       }
     };
 
     this.inputManager.onAimStopCallback = () => {
-      this.weaponSystem.setAiming(false);
+      this.weaponSystem.setAiming(false, false);
       this.hud.setCrosshairAiming(false);
-      this.thirdPersonCamera.targetFOV = 75.0;
     };
 
     // R Key: Reload
@@ -275,12 +273,49 @@ class BengaluruGame {
         this.weaponSystem.reload();
       }
     };
+
+    // Weapon Switching (1-5 keys)
+    this.inputManager.onSwitchWeaponCallback = (wepKey) => {
+      if (this.weaponSystem) {
+        this.weaponSystem.switchWeapon(wepKey);
+        this.hud.updateWeaponCard(
+          this.weaponSystem.activeConfig.name,
+          'AUTO',
+          this.weaponSystem.activeConfig.caliber,
+          this.weaponSystem.clipAmmo,
+          this.weaponSystem.reserveAmmo,
+          wepKey
+        );
+        this.audioManager.playUIBeep(520);
+      }
+    };
+
+    // Dev Drawer (~ key toggle)
+    this.inputManager.onToggleDevDrawerCallback = () => {
+      this.hud.toggleDevDrawer();
+    };
+
+    // Weapon selection from dev drawer
+    this.hud.onSelectWeapon = (wepKey) => {
+      if (this.weaponSystem) {
+        this.weaponSystem.switchWeapon(wepKey);
+        this.hud.updateWeaponCard(
+          this.weaponSystem.activeConfig.name,
+          'AUTO',
+          this.weaponSystem.activeConfig.caliber,
+          this.weaponSystem.clipAmmo,
+          this.weaponSystem.reserveAmmo,
+          wepKey
+        );
+      }
+    };
   }
 
   enterVehicle(vehicle) {
     this.gameState.isInVehicle = true;
     this.gameState.activeVehicle = vehicle;
     vehicle.isOccupied = true;
+    if (vehicle.startEntryTransition) vehicle.startEntryTransition();
     this.hud.hideInteractionPrompt();
     this.audioManager.playUIBeep(520);
   }
@@ -288,6 +323,7 @@ class BengaluruGame {
   exitVehicle() {
     if (!this.gameState.activeVehicle) return;
     const vehicle = this.gameState.activeVehicle;
+    if (vehicle.startExitTransition) vehicle.startExitTransition();
     vehicle.isOccupied = false;
     this.gameState.isInVehicle = false;
     this.gameState.activeVehicle = null;
@@ -312,19 +348,27 @@ class BengaluruGame {
     const mouseDelta = this.inputManager.consumeMouseDelta();
 
     if (this.gameState.isPlaying()) {
+      const isAiming = this.inputManager.keys.aim;
+      const isADS = isAiming && !this.player.isSprinting;
+
       // Update Player or Vehicle
       if (this.gameState.isInVehicle) {
         const vehicle = this.gameState.activeVehicle;
         vehicle.update(delta, this.inputManager.keys, this.audioManager);
-        this.thirdPersonCamera.update(delta, vehicle.position, mouseDelta, false);
+        this.thirdPersonCamera.update(delta, vehicle.position, mouseDelta, false, false, false, false);
       } else {
         const cameraYaw = this.thirdPersonCamera.getYaw();
-        this.player.update(delta, this.inputManager.keys, cameraYaw);
+        const cameraPitch = this.thirdPersonCamera.getPitch();
+
+        this.player.update(delta, this.inputManager.keys, cameraYaw, cameraPitch, isAiming);
         this.thirdPersonCamera.update(
           delta,
           this.player.position,
           mouseDelta,
-          this.player.isSprinting
+          this.player.isSprinting,
+          this.player.isCrouched,
+          isAiming,
+          isADS
         );
 
         // Check interaction prompts
@@ -332,12 +376,12 @@ class BengaluruGame {
         const distAuto = this.drivableAuto.getInteractionDistance(this.player.position);
         const lootCrate = this.lootSpawner.getClosestCrate(this.player.position);
 
-        if (distSupercar < 4.5) {
-          this.hud.showInteractionPrompt('Drive Vajra Hypercar [E]');
+        if (distSupercar < 4.8) {
+          this.hud.showInteractionPrompt('Drive Vajra Venom GT [E]');
         } else if (distAuto < 4.2) {
           this.hud.showInteractionPrompt('Drive Auto-Rickshaw [E]');
         } else if (lootCrate) {
-          this.hud.showInteractionPrompt(`Pick up ${lootCrate.name} [E]`);
+          this.hud.showInteractionPrompt(`Equip ${lootCrate.name} [E]`);
         } else if (Math.abs(this.player.position.x) < 35 && Math.abs(this.player.position.z - (-20)) < 15) {
           this.hud.showInteractionPrompt('Board Namma Metro Train Platform');
         } else {
@@ -346,7 +390,8 @@ class BengaluruGame {
       }
 
       // Update Phase 2 Systems
-      this.weaponSystem.update(delta, this.camera, this.gameState.isInVehicle);
+      this.weaponSystem.setAiming(isAiming, isADS);
+      this.weaponSystem.update(delta, this.camera, this.gameState.isInVehicle, this.thirdPersonCamera);
       this.lootSpawner.update(delta);
       this.movingMetro.update(delta, this.player);
       this.brManager.update(delta, this.player, this.hud);
@@ -363,7 +408,14 @@ class BengaluruGame {
       const nitroVal = (this.gameState.isInVehicle && this.gameState.activeVehicle === this.supercar) ? this.supercar.nitroFuel : null;
       
       this.hud.update(activePos, compassBearing, nitroVal);
-      this.hud.updateAmmo(this.weaponSystem.clipAmmo, this.weaponSystem.reserveAmmo);
+      this.hud.updateWeaponCard(
+        this.weaponSystem.activeConfig.name,
+        'AUTO',
+        this.weaponSystem.activeConfig.caliber,
+        this.weaponSystem.clipAmmo,
+        this.weaponSystem.reserveAmmo,
+        this.weaponSystem.currentWeaponKey
+      );
       this.minimap.renderMinimap(activePos, this.thirdPersonCamera.getYaw(), this.gameState.currentZone);
     } else if (this.gameState.currentState === GameModeState.MAP_OPEN) {
       const activePos = this.gameState.isInVehicle ? this.gameState.activeVehicle.position : this.player.position;

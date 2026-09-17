@@ -132,12 +132,25 @@
         <span id="prompt-label" class="prompt-label">Enter Vehicle</span>
       </div>
 
-      <!-- BOTTOM BAR -->
+      <!-- BOTTOM BAR (CLEAN ORIGINAL TACTICAL BATTLE ROYALE HUD) -->
       <div class="hud-bottom">
+        <!-- PLAYER TACTICAL VITALS -->
         <div class="hud-player-status">
+          <!-- Armor Shield Bar -->
           <div class="status-row">
             <div class="status-header">
-              <span>Health</span>
+              <span class="status-title"><span class="armor-icon">🛡️</span> Armor (Tier II)</span>
+              <span id="armor-value">100 / 100</span>
+            </div>
+            <div class="bar-container">
+              <div id="armor-bar" class="bar-fill armor" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Health Bar -->
+          <div class="status-row">
+            <div class="status-header">
+              <span class="status-title"><span class="health-icon">❤️</span> Vitals</span>
               <span id="health-value">100 / 100</span>
             </div>
             <div class="bar-container">
@@ -145,9 +158,10 @@
             </div>
           </div>
 
+          <!-- Stamina / Nitro Boost Bar -->
           <div class="status-row">
             <div class="status-header">
-              <span>Stamina / Nitro</span>
+              <span class="status-title"><span class="stamina-icon">⚡</span> Stamina / Nitro</span>
               <span id="stamina-value">100%</span>
             </div>
             <div class="bar-container">
@@ -155,29 +169,81 @@
             </div>
           </div>
 
-          <div class="controls-hint">
-            <strong>Controls:</strong> WASD: Move/Drive | SHIFT: Sprint/Nitro | RMB: Aim | LMB: Shoot | R: Reload | E: Interact | M: Map | ESC: Pause
+          <!-- Tactical Equipment Quick Slots -->
+          <div class="tactical-slots">
+            <div class="tac-slot"><span class="tac-key">G</span><span class="tac-label">FRAG</span></div>
+            <div class="tac-slot"><span class="tac-key">4</span><span class="tac-label">MEDKIT</span></div>
+            <div class="tac-slot"><span class="tac-key">5</span><span class="tac-label">SHIELD</span></div>
           </div>
         </div>
 
-        <!-- WEAPON HUD STATUS -->
+        <!-- TACTICAL WEAPON CARD -->
         <div id="weapon-hud" class="weapon-hud-panel">
-          <div class="weapon-name">AR-9 BANGALORE SPECIAL</div>
+          <div class="weapon-card-header">
+            <span id="weapon-name" class="weapon-name">AR-9 BANGALORE SPECIAL</span>
+            <span id="weapon-firemode" class="firemode-badge">AUTO</span>
+          </div>
           <div class="weapon-ammo-display">
             <span id="ammo-clip" class="ammo-clip">30</span>
             <span class="ammo-divider">/</span>
             <span id="ammo-reserve" class="ammo-reserve">120</span>
           </div>
-          <div class="weapon-type-badge">FULL AUTO • 5.56mm</div>
+          <div class="weapon-card-footer">
+            <span id="weapon-caliber" class="weapon-caliber">5.56x45mm NATO</span>
+            <div class="weapon-slot-indicators">
+              <span class="slot-pill active" data-slot="ar9" title="[1] AR-9">1</span>
+              <span class="slot-pill" data-slot="kestrel" title="[2] KESTREL">2</span>
+              <span class="slot-pill" data-slot="raven" title="[3] RAVEN">3</span>
+              <span class="slot-pill" data-slot="pulse9" title="[4] PULSE-9">4</span>
+              <span class="slot-pill" data-slot="longshot" title="[5] LONGSHOT">5</span>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <!-- QUICK TOGGLE CONTROLS FOR TESTING -->
-        <div class="hud-quick-toggles interactive">
-          <button id="btn-toggle-time" class="quick-btn" title="Cycle Day / Sunset / Night">☀️ Time: Day</button>
-          <button id="btn-toggle-weather" class="quick-btn" title="Toggle Clear / Monsoon Rain">🌧️ Weather: Clear</button>
-          <button id="btn-toggle-camera" class="quick-btn" title="Toggle Camera Shoulder View">📷 Shoulder Cam</button>
-          <button id="btn-open-garage" class="quick-btn" title="Open Supercar Garage">🏎️ Garage</button>
-          <button id="btn-open-map" class="quick-btn" title="Open World Map (M)">🗺️ Map (M)</button>
+      <!-- COLLAPSIBLE SIMULATION DEV DRAWER (Toggled via button or '~') -->
+      <div class="dev-drawer-toggle-wrapper interactive">
+        <button id="btn-toggle-dev-drawer" class="dev-toggle-btn" title="Toggle Simulation Testing Controls (Key: ~)">
+          <span>⚙ SIM CONTROLS</span>
+        </button>
+      </div>
+
+      <div id="sim-dev-drawer" class="sim-dev-drawer interactive hidden">
+        <div class="drawer-header">
+          <span>SIMULATION SETTINGS</span>
+          <button id="btn-close-dev-drawer" class="drawer-close">✕</button>
+        </div>
+        <div class="drawer-content">
+          <div class="drawer-row">
+            <span class="drawer-label">Time of Day</span>
+            <button id="btn-toggle-time" class="drawer-btn">☀️ Day / Night</button>
+          </div>
+          <div class="drawer-row">
+            <span class="drawer-label">Weather</span>
+            <button id="btn-toggle-weather" class="drawer-btn">🌧️ Clear / Rain</button>
+          </div>
+          <div class="drawer-row">
+            <span class="drawer-label">Camera Angle</span>
+            <button id="btn-toggle-camera" class="drawer-btn">📷 Shoulder Cam</button>
+          </div>
+          <div class="drawer-row">
+            <span class="drawer-label">Vehicle Hub</span>
+            <button id="btn-open-garage" class="drawer-btn">🏎️ Garage</button>
+          </div>
+          <div class="drawer-row">
+            <span class="drawer-label">Full Map</span>
+            <button id="btn-open-map" class="drawer-btn">🗺️ District Map (M)</button>
+          </div>
+          <div class="drawer-row">
+            <span class="drawer-label">Weapon Select</span>
+            <div class="drawer-weapon-btns">
+              <button class="d-wep-btn active" data-wep="ar9">AR-9</button>
+              <button class="d-wep-btn" data-wep="kestrel">Kestrel</button>
+              <button class="d-wep-btn" data-wep="raven">Raven</button>
+              <button class="d-wep-btn" data-wep="pulse9">Pulse-9</button>
+              <button class="d-wep-btn" data-wep="longshot">Longshot</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
